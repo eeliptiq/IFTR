@@ -1,0 +1,20 @@
+=== PyCharm Diagnostic ===
+Date: $(date)
+
+1. Project Structure:
+$(find . -maxdepth 3 -type f -name "*.py" | head -20)
+
+2. Python Availability:
+$(which python3)
+$(python3 --version 2>&1)
+
+3. Virtual Environment:
+$(ls -la .venv/bin/python* 2>/dev/null || echo "No .venv/bin/python* found")
+$(source .venv/bin/activate 2>/dev/null && which python3 || echo "Cannot activate")
+
+4. PyCharm Version:
+$(pycharm --version 2>/dev/null || echo "Unknown")
+
+5. Settings Issue:
+- Settings → Python Interpreter shows empty/nothing
+- Need to configure .venv at: $(pwd)/.venv/bin/python3

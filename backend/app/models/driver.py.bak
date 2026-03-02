@@ -1,0 +1,215 @@
+from datetime import datetime, timezone
+from typing import Optional, List, TYPE_CHECKING
+from pydantic import Field, ConfigDict, model_validator
+import logging
+
+# Import from core (encryption)
+from ..core.encryption import encrypt_data, decrypt_data
+from ..core.ids import generate_id  # if you have this
+
+# Import shared types from general
+from .general import VehicleType, IFTRBaseModel
+
+logger = logging.getLogger(__name__)
+
+'''----------------DRIVER INFORMATION---------------'''
+'''consider adding extra anonymity and/or encryption here'''
+# Route Preferences for Driver Optimization
+
+class RoutePreferences(IFTRBaseModel):
+    revenue_vs_rest: int = Field(default=50, ge=0, le=100)
+    earn_vs_volunteer: int = Field(default=50, ge=0, le=100)
+    adventure_mode: bool = False
+    max_distance: int = Field(default=10, ge=1, le=100)
+
+    # Eight cardinal directions
+    preferred_direction: Optional[str] = Field(
+        default=None,
+        pattern="^(north|northeast|east|southeast|south|southwest|west|northwest)$"
+    )
+
+    # Time windows
+    preferred_time_window: Optional[str] = Field(
+        default=None,
+        pattern="^(morning|afternoon|evening|night)$"
+    )
+
+    # Helper methods for UI
+    @property
+    def time_window_hours(self) -> Optional[tuple]:
+        """Convert time window to hour range for routing"""
+        windows = {
+            "morning": (7, 12),
+            "afternoon": (12, 17),
+            "evening": (17, 22),
+            "night": (22, 4)
+        }
+        return windows.get(self.preferred_time_window)
+
+    @property
+    def direction_icon(self) -> str:
+        """Return emoji for UI"""
+        icons = {
+            "north": "⬆️",
+            "northeast": "↗️",
+            "east": "➡️",
+            "southeast": "↘️",
+            "south": "⬇️",
+            "southwest": "↙️",
+            "west": "⬅️",
+            "northwest": "↖️"
+        }
+        return icons.get(self.preferred_direction, "🎯")
+
+    def clear_after_shift(self):
+        """Reset preferences at end of shift"""
+        self.preferred_direction = None
+        self.preferred_time_window = None
+
+# Driver Models
+class Driver(IFTRBaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    # Core identifiers
+    driver_id: str = Field(default_factory=lambda: generate_id("driver"))
+    user_id: str
+
+    # Encrypted fields (stored encrypted in DB)
+    _license_number_encrypted: str = ""
+    _license_plate_encrypted: str = ""
+
+    # Location (coordinates encrypted, city/zip public)
+    _last_location_encrypted: Optional[str] = None
+    last_location_city: str = ""
+    last_location_zip: str = ""
+    last_location_time: Optional[datetime] = None
+
+    # Preferences
+    route_preferences: RoutePreferences = Field(default_factory=RoutePreferences)
+    show_in_leaderboard: bool = False
+
+    # Public stats
+    vehicle_type: VehicleType = VehicleType.CAR
+    is_available: bool = True
+    total_deliveries: int = 0
+    surplus_deliveries: int = 0
+    total_earnings: float = 0.0
+    rating: float = 5.0
+
+    # Timestamps
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    # --- Encrypted Property Accessors ---
+
+    @property
+    def license_number(self) -> str:
+        """Get decrypted license number."""
+        if not self._license_number_encrypted:
+            return ""
+        try:
+            return decrypt_data(self._license_number_encrypted)
+        except ValueError as e:
+            logger.error(f"Failed to decrypt license number for driver {self.driver_id}: {e}")
+            return "[DECRYPTION_ERROR]"
+
+    @license_number.setter
+    def license_number(self, value: str):
+        """Set and encrypt license number"""
+        if value:
+            self._license_number_encrypted = encrypt_data(value.strip())
+        else:
+            self._license_number_encrypted = ""
+
+    @property
+    def license_plate(self) -> str:
+        """Get decrypted license plate"""
+        if not self._license_plate_encrypted:
+            return ""
+        try:
+            return decrypt_data(self._license_plate_encrypted)
+        except ValueError as e:
+            logger.error(f"Failed to decrypt license plate for driver {self.driver_id}: {e}")
+            return "[DECRYPTION_ERROR]"
+
+    @license_plate.setter
+    def license_plate(self, value: str):
+        """Set and encrypt license plate"""
+        if value:
+            self._license_plate_encrypted = encrypt_data(value.strip().upper())
+        else:
+            self._license_plate_encrypted = ""
+
+    # --- Helper Methods ---
+
+    def update_location(self, lat: float, lng: float, city: str = "", zip_code: str = ""):
+        """Update driver location with encryption"""
+        self._last_location_encrypted = encrypt_data(f"{lat},{lng}")
+        self.last_location_city = city
+        self.last_location_zip = zip_code
+        self.last_location_time = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
+
+    def mask_for_logging(self) -> dict:
+        """Return a safe version for logging (no sensitive data)"""
+        return {
+            "driver_id": self.driver_id,
+            "user_id": self.user_id[:8] + "...",
+            "vehicle_type": self.vehicle_type,
+            "is_available": self.is_available,
+            "total_deliveries": self.total_deliveries,
+        }
+
+    @model_validator(mode='after')
+    def validate_encryption_keys(self):
+        """Validate that encryption environment is properly set up"""
+        if self._license_plate_encrypted:
+            try:
+                test = decrypt_data(self._license_plate_encrypted)
+            except ValueError as e:
+                logger.error(f"Encryption key validation failed: {e}")
+        return self
+
+    # Delivery tracking
+
+    current_delivery_id: Optional[str] = None
+    delivery_history: List[str] = Field(default_factory=list)  # Past delivery IDs
+
+    @property
+    def is_on_delivery(self) -> bool:
+        """Check if driver is currently on a delivery"""
+        return self.current_delivery_id is not None and self.is_available
+
+class DriverCreate(IFTRBaseModel):
+    """Input model for creating a driver"""
+    vehicle_type: VehicleType = VehicleType.CAR
+    license_number: str = ""
+    license_plate: str = ""
+
+    def to_driver(self, user_id: str) -> Driver:
+        """Convert to Driver model with encryption"""
+        driver = Driver(user_id=user_id, vehicle_type=self.vehicle_type)
+        driver.license_number = self.license_number
+        driver.license_plate = self.license_plate
+        return driver
+
+class DriverCreate(IFTRBaseModel):
+    vehicle_type: VehicleType = VehicleType.CAR
+    license_number: str = ""
+    license_plate: str = ""
+
+class DriverUpdate(IFTRBaseModel):
+    """Input model for updating driver info"""
+    vehicle_type: Optional[VehicleType] = None
+    license_number: Optional[str] = None
+    license_plate: Optional[str] = None
+    is_available: Optional[bool] = None
+    route_preferences: Optional[RoutePreferences] = None
+    show_in_leaderboard: Optional[bool] = None
+
+class DriverLocationUpdate(IFTRBaseModel):
+    """Input model for location updates"""
+    lat: float
+    lng: float
+    city: str = ""
+    zip_code: str = ""

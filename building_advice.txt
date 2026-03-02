@@ -1,0 +1,19 @@
+Database Recommendations:
+    SQLite for testing
+    PostgreSQL or MongoDB/Firestore for deployment
+
+"""
+## Data Protection Compliance
+
+This application encrypts sensitive driver information (license numbers, plates, locations).
+Depending on your jurisdiction, you may need to:
+- EU/GDPR: Implement data retention policies, right to erasure
+- US/State laws: Vary by state (CCPA, etc.)
+- Other regions: Check local privacy laws
+
+### For Independent Deployments:
+1. Review and update ENCRYPTION_KEY and ENCRYPTION_SALT in production
+2. Implement proper key rotation procedures
+3. Consider additional encryption for database backups
+"""
+

@@ -1,0 +1,241 @@
+# models/delivery.py
+# Import from general
+
+# Import encryption if needed
+"""
+Delivery model for tracking food transportation.
+Separate from Order to handle multi-pickup, volunteer logistics, and routing.
+"""
+
+from datetime import datetime, timezone
+from typing import Optional, List, Dict, Any
+from enum import Enum
+from pydantic import Field, ConfigDict, field_validator
+from decimal import Decimal
+
+# Import from same package
+from .general import IFTRBaseModel, generate_id, OrderStatus, DeliveryInstructionType
+from .encrypted_models import EncryptedAddress
+
+import logging
+
+class DeliveryStatus(str, Enum):
+    """Status of a delivery"""
+    PENDING = "pending"           # Created, not yet assigned
+    OFFERED = "offered"           # Offered to driver(s)
+    ASSIGNED = "assigned"         # Driver accepted
+    PICKED_UP = "picked_up"       # Driver has food
+    IN_TRANSIT = "in_transit"     # On the way to dropoff
+    ARRIVED = "arrived"          # At dropoff location
+    DELIVERED = "delivered"      # Successfully completed
+    FAILED = "failed"            # Could not complete
+    CANCELLED = "cancelled"      # Cancelled before completion
+
+class DeliveryType(str, Enum):
+    """Type of delivery"""
+    SURPLUS = "surplus"           # Volunteer-based surplus food
+    REGULAR = "regular"           # Standard paid delivery
+    URGENT = "urgent"             # Time-sensitive (medical, etc.)
+    BATCH = "batch"               # Multiple orders together
+
+class ProofType(str, Enum):
+    """Type of delivery proof"""
+    PHOTO = "photo"
+    GPS = "gps"
+    SIGNATURE = "signature"
+    OTP = "otp"                   # One-time password
+    CALL = "call"                 # Phone call verification
+
+
+# ===== MODELS =====
+class DeliveryProof(IFTRBaseModel):
+    """Evidence that delivery was completed"""
+    proof_id: str = Field(default_factory=lambda: generate_id("proof"))
+    delivery_id: str
+    proof_type: ProofType
+
+    # Proof data (encrypted where sensitive)
+    data: str  # Could be photo URL, GPS coordinates, signature, etc.
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    # Verification
+    verified_by: Optional[str] = None  # support/admin who verified
+    verified_at: Optional[datetime] = None
+    automated_verification: bool = False
+
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class Delivery(IFTRBaseModel):
+    """
+    Core delivery model for tracking food transportation.
+    Can handle multiple pickups (for surplus food) and complex routing.
+    """
+    model_config = ConfigDict(extra="ignore")
+
+    # Identifiers
+    delivery_id: str = Field(default_factory=lambda: generate_id("deliv"))
+    order_ids: List[str] = Field(default_factory=list)  # Can deliver multiple orders
+    external_reference: Optional[str] = None  # For third-party integrations
+
+    # Assignment
+    driver_id: Optional[str] = None
+    assigned_at: Optional[datetime] = None
+    offered_to_drivers: List[str] = Field(default_factory=list)  # Drivers who were offered
+
+    # Delivery details
+    delivery_type: DeliveryType = DeliveryType.REGULAR
+    status: OrderStatus = OrderStatus.PENDING
+    priority: int = Field(default=1, ge=1, le=10)  # 1=low, 10=urgent
+
+    # Locations - can have multiple pickups for surplus food
+    pickups: List[EncryptedAddress] = Field(default_factory=list)  # Multiple pickup points
+    dropoff: EncryptedAddress  # Single dropoff (for now)
+
+    # Instructions
+    pickup_instructions: Dict[str, str] = Field(default_factory=dict)  # pickup_id -> instructions
+    delivery_instructions: str = ""
+    special_handling: str = ""  # e.g., "Keep refrigerated", "Fragile"
+
+    # Timing
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    ready_by: Optional[datetime] = None  # When food will be ready
+    pickup_window_start: Optional[datetime] = None
+    pickup_window_end: Optional[datetime] = None
+    delivery_window_start: Optional[datetime] = None
+    delivery_window_end: Optional[datetime] = None
+    actual_pickup_time: Optional[datetime] = None
+    actual_delivery_time: Optional[datetime] = None
+
+    # Proof & verification
+    proofs: List[DeliveryProof] = Field(default_factory=list)
+    recipient_name: Optional[str] = None
+    recipient_contact: Optional[str] = None
+    recipient_signature: Optional[str] = None  # Base64 signature
+
+    # Metrics
+    estimated_distance_km: Optional[float] = None
+    actual_distance_km: Optional[float] = None
+    estimated_duration_min: Optional[int] = None
+    actual_duration_min: Optional[int] = None
+    estimated_earnings: Optional[Decimal] = None  # For paid deliveries
+    actual_earnings: Optional[Decimal] = None
+
+    # For surplus tracking
+    food_weight_kg: Optional[float] = None
+    food_category: Optional[str] = None
+    food_source: Optional[str] = None  # e.g., "restaurant", "grocery", "farm"
+
+    # Status history
+    status_history: List[Dict[str, Any]] = Field(default_factory=list)
+
+    # ===== VALIDATORS =====
+    @field_validator('pickups')
+    @classmethod
+    def validate_pickups(cls, v: List[EncryptedAddress]) -> List[EncryptedAddress]:
+        """Ensure at least one pickup location"""
+        if not v:
+            raise ValueError("At least one pickup location is required")
+        return v
+
+    @field_validator('status_history', mode='before')
+    @classmethod
+    def init_status_history(cls, v: Optional[List[Dict]]) -> List[Dict]:
+        """Initialize status history if not provided"""
+        if v is None:
+            return [{
+                "status": "pending",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "notes": "Delivery created"
+            }]
+        return v
+
+    # ===== PROPERTIES =====
+    @property
+    def is_active(self) -> bool:
+        """Check if delivery is currently active"""
+        active_statuses = {
+            OrderStatus.ASSIGNED,
+            OrderStatus.PICKED_UP,
+            OrderStatus.IN_TRANSIT,
+            OrderStatus.ARRIVED
+        }
+        return self.status in active_statuses
+
+    @property
+    def is_completed(self) -> bool:
+        """Check if delivery is completed (successfully or not)"""
+        completed_statuses = {
+            OrderStatus.DELIVERED,
+            OrderStatus.FAILED,
+            OrderStatus.CANCELLED
+        }
+        return self.status in completed_statuses
+
+    @property
+    def needs_proof(self) -> bool:
+        """Check if delivery needs proof based on status"""
+        return self.status in [OrderStatus.PICKED_UP, OrderStatus.DELIVERED]
+
+    @property
+    def primary_pickup(self) -> Optional[EncryptedAddress]:
+        """Get primary pickup location (first in list)"""
+        return self.pickups[0] if self.pickups else None
+
+    # ===== METHODS =====
+    def add_status_update(self, new_status: OrderStatus, notes: str = ""):
+        """Add a status update to history"""
+        self.status_history.append({
+            "status": new_status.value,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "notes": notes
+        })
+        self.status = new_status
+
+    def add_proof(self, proof_type: ProofType, data: str, metadata: Optional[Dict] = None):
+        """Add delivery proof"""
+        proof = DeliveryProof(
+            delivery_id=self.delivery_id,
+            proof_type=proof_type,
+            data=data,
+            metadata=metadata or {}
+        )
+        self.proofs.append(proof)
+
+        # Auto-verify certain proof types
+        if proof_type in [ProofType.GPS, ProofType.OTP]:
+            proof.automated_verification = True
+            proof.verified_at = datetime.now(timezone.utc)
+
+    def calculate_estimated_earnings(self, base_rate: Decimal = Decimal("5.00")) -> Decimal:
+        """Calculate estimated earnings for this delivery"""
+        if self.estimated_distance_km:
+            # Simple calculation: base + distance * rate
+            distance_rate = Decimal("0.50")  # $0.50 per km
+            return base_rate + (Decimal(str(self.estimated_distance_km)) * distance_rate)
+        return base_rate
+    
+class DeliveryCreate(IFTRBaseModel):
+    """Input for creating a delivery"""
+    order_ids: List[str] = Field(default_factory=list)
+    delivery_type: DeliveryType = DeliveryType.REGULAR
+    pickups: List[Dict[str, Any]]  # Will convert to EncryptedAddress
+    dropoff: Dict[str, Any]  # Will convert to EncryptedAddress
+    priority: int = 1
+    delivery_instructions: str = ""
+    ready_by: Optional[datetime] = None
+    food_weight_kg: Optional[float] = None
+    food_category: Optional[str] = None
+
+class DeliveryUpdate(IFTRBaseModel):
+    """Input for updating a delivery"""
+    driver_id: Optional[str] = None
+    status: Optional[OrderStatus] = None
+    actual_distance_km: Optional[float] = None
+    actual_duration_min: Optional[int] = None
+    actual_earnings: Optional[Decimal] = None
+    recipient_name: Optional[str] = None
+    recipient_contact: Optional[str] = None
+
+logger = logging.getLogger(__name__)
+

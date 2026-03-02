@@ -1,0 +1,128 @@
+# Location Class for use in major metropolitan areas with estimated >1 million active locations
+# add to models.py
+class HighVolumeEncryptedLocation(IFTRBaseModel):
+    """For metro areas with >1M locations"""
+    coordinates: str = ""  # Encrypted JSON: {"lat": 22.7, "lng": -74.0}
+    # ... other fields
+
+    @validator('coordinates')
+    def validate_encrypted_format(cls, v):
+        # Quick check that it's base64 and decryptable
+        try:
+            data = decrypt_data(v)
+            coords = json.loads(data)
+            assert 'lat' in coords and 'lng' in coords
+            return v
+        except:
+            raise ValueError("Invalid encrypted coordinates format")
+
+#--------------------------------------------------------------------------------------------------------------
+# Enhanced Location Encryption. Current system meets standards already, but this adds an extra layer of security
+# replace class Order(BaseModel): in models.py
+class Order(BaseModel):
+    """
+    Order with encrypted location data.
+
+    Note: Coordinates are encrypted separately (lat/lng). For deployments
+    with >1M active orders, consider combined coordinate encryption to
+    reduce storage. Current approach supports most use cases effectively.
+    """
+    pickup_location: EncryptedLocation
+    delivery_location: EncryptedLocation
+    distance_km: Optional[float] = None
+
+    # Add for optimization:
+    pickup_geo_hash: Optional[str] = None  # e.g., "dr5reg" (Geohash)
+    delivery_geo_hash: Optional[str] = None
+
+    @validator('pickup_location')
+    def set_pickup_geo_hash(cls, v, values):
+        """Generate approximate location hash for queries"""
+        if v.lat and v.lng:
+            # Decrypt just enough to get approximate location
+            # Or store hash at encryption time
+            lat = float(decrypt_data(v.lat))
+            lng = float(decrypt_data(v.lng))
+            values['pickup_geo_hash'] = geohash.encode(lat, lng, precision=5)
+        return v
+
+# More Enhanced Encryption--------------------------------------------------------------------------------
+# replace pieces of class OrderCreateRequest(BaseModel): in models.py
+class OrderCreateRequest(BaseModel):
+    # ... other fields ...
+
+    delivery_instructions_encrypted: str = Field(
+        default="",
+        max_length=1000,
+        description="Delivery instructions encrypted client-side with user's public key"
+    )
+
+    # Then in your endpoint, just store as-is without decrypting
+    # Only the delivery driver (with proper key) can decrypt
+
+2. Circular Import Prevention - Real Example
+
+Let's say you have this issue in your files:
+
+Problem: driver.py imports from delivery.py, and delivery.py imports from driver.py
+
+Solution:
+python
+
+# models/driver.py
+from typing import TYPE_CHECKING, Optional
+from pydantic import Field
+
+# Use TYPE_CHECKING to avoid circular import at runtime
+if TYPE_CHECKING:
+    from app.models.delivery import Delivery
+
+class Driver(BaseModel):
+    driver_id: str
+    # Use string annotation for forward reference
+    current_delivery: Optional["Delivery"] = None
+    # ... rest of driver model
+
+python
+
+# models/delivery.py
+from typing import TYPE_CHECKING, Optional
+from pydantic import Field
+
+if TYPE_CHECKING:
+    from app.models.driver import Driver
+
+class Delivery(BaseModel):
+    delivery_id: str
+    # String annotation for Driver
+    assigned_driver: Optional["Driver"] = None
+    # ... rest of delivery model
+
+#------------------------------------------------------------------------------------
+
+# test_circular.py
+import sys
+sys.path.insert(0, '.')
+
+def test_circular_imports():
+    """Test all model imports together"""
+    modules_to_test = [
+        'app.models.general',
+        'app.models.driver',
+        'app.models.delivery',
+        'app.models.order',
+        'app.models.organization',
+        'app.models.restaurant',
+    ]
+
+    for module in modules_to_test:
+        try:
+            __import__(module)
+            print(f"✓ {module} imports cleanly")
+        except ImportError as e:
+            print(f"✗ {module} import error: {e}")
+        except Exception as e:
+            print(f"✗ {module} circular import? {type(e).__name__}: {e}")
+
+if __name__ == "__main__":
+    test_circular_imports()

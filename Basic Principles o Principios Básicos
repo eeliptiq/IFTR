@@ -1,0 +1,22 @@
+IFTR is not a single app, but a framework and resource hub for developing community-focused delivery platforms. 
+It provides open-source templates, technical documentation, and comprehensive guides covering both human and operational challenges.
+
+Independent deployments are expected to be non-profit, open-source (or source-available), and fundamentally responsive to the needs of their local communities.
+
+The core principle is "one deployment per region, one region per deployment," though with key exceptions:
+ - Hub-and-Spoke or Overlapping Service Areas: (e.g., Town C can deliver to both Town A and Town B, but A and B are too far apart to serve each other directly).
+ - Adaptations for different use cases (e.g., using the framework for grocery deliveries, mutual aid networks, or library book drops).
+
+Future development may explore a unified mobile client capable of connecting to multiple regional instances. 
+We also plan to foster a global forum for shared learning and collaboration among deployments.
+
+IFTR no es una aplicación única, sino un centro de recursos (hub) para crear aplicaciones de entrega comunitarias. 
+Proporciona plantillas de código abierto, documentación técnica y guías que abordan tanto los desafíos operativos y comunitarios.
+
+Las implementaciones independientes deben ser sin fines de lucro, de código abierto (o con código parcialmente disponible), y estar fundamentalmente atentas a las necesidades de su comunidad local.
+
+La directriz general es "una implementación por zona geográfica, y una zona geográfica por implementación", aunque con excepciones:
+ - Zonas de servicio superpuestas o en modelo de "hub-and-spoke": (Por ejemplo, la Ciudad C puede entregar a las Ciudades A y B, pero A y B están demasiado lejos para servirse entre sí).
+ - Adaptaciones para otros usos (por ejemplo, usar la plantilla para entregas de alimentos, redes de apoyo mutuo o bibliotecas).
+
+En el futuro, podríamos explorar un cliente móvil unificado capaz de conectarse a múltiples instancias regionales. También planeamos crear un foro global para el aprendizaje compartido.

@@ -1,0 +1,407 @@
+﻿Independent Food Transport Revolution
+Human Source Code
+
+Formatted Version: https://docs.google.com/document/d/1Wf1E6o3m7eKjR8zOjOtLgW_BxOK4AYlB2hlfGriMQAc/
+
+
+Author Statement:
+
+In Summer 2024, I was working in a call center and I was absolutely miserable. I started the process to register for one of Those Apps, and checked my notifications at least fifty times a day to see if I’d been approved. I thought it would be my ticket to freedom…
+
+
+And surprisingly, it was.
+
+
+For the next year and a half, I sped through the city on my e-bike, wind in my face, day and night, summer and winter, going wherever the algorithm took me, and it was blissful.
+
+
+But something nagged at me. I had some experience with charitable and anarchist projects including free food distribution, and that kind of work always felt really valuable and necessary. 
+
+
+And I was keenly aware that the people we helped at that type of project weren’t ordering from my new employer. Even as a person with a house, a job, and a stable foundation, I would be lucky if I got to order from Those Apps once a month.
+
+
+Fun aside, how could I justify spending hours a day providing a luxury service, and not even making enough money to help anyone except myself?
+
+
+I found a few workarounds. I would get lost, the order would get cancelled, and I would give it to someone who looked like they could use a meal. I would meet a union trucker to get a big box of chips to give out between scheduled stops.
+
+
+But do we have to cheat the system forever? Or can we make a new one?
+
+
+Before we continue, this isn’t all fun and games. Development in this industry is a complex process that has serious risks for entire communities. That’s what the first, most important chapter will deal with. But that doesn’t make it better to do nothing.
+
+
+In the US (a “developed nation”) 48 million people face food insecurity (1 in 15), including 14 million children (1 in 5). Gig workers, including delivery drivers, have a good chance of showing up in these statistics due to low wages and unpredictability.
+
+
+
+
+As a math enthusiast, I am blown away by the modern economy. Millions of variables being used every day to calculate who gives who a ride, who drops off whose food, and whose medicine is paid for.
+
+
+But sometimes, people aren’t even in the equation.
+
+
+It’s time for a new equation.
+
+
+WHY WE CAN BEAT THEM
+
+
+1. Standing on the shoulders of giants
+
+Nobody who wrote Those Apps had ever worked for Those Apps, or even ordered from them. They were written before the big AI breakthrough, and even before current developments in conventional mathematics such as new graph theory theorems (from my own alma mater ayyyy). Can they change things now? Yes, but if you have experience with software, you probably know that some things never get changed properly until you start over.
+
+2. The RENN (Real Neural Network) Technology
+
+Those Apps have a lot of technical capacity, but it’s managed by people who either aren’t on the ground themselves, or don’t have to depend on the ground for their livelihood. Why did the Viet Cong defeat four invaders at once? They understood the land. They understood the culture. Tell me how Those Apps are going to keep their maps superior once the Real Neural Network starts up.
+
+3. We actually want to do a good job
+
+Those Apps have some economic advantages right now, but the things they have to do to get and keep them will be their own destruction. When customers are paying lower prices, drivers and restaurants are earning more, communities are blossoming, and everyone is having more fun, Those Apps will look like a joke. This isn’t a fanciful scenario. It’s publicly verifiable information that Those Apps are more often than not operating at a net loss of income. What this means is they’re preparing to corner the market and increase prices dramatically. How disappointed they shall soon be!
+
+
+
+
+
+
+
+
+CHAPTER 1: THE HEART
+“Blessed is the flame that burns in the secret fastness of our hearts.”
+“In their hearts is a disease of doubt and hypocrisy.”
+
+
+As I said in the Author Note, this is the most important chapter. It is also a hard one. A common practice in software development is to imagine the worst possible scenarios to prepare for them. In some cases the worst possible scenario is a video game breaking, but in this case it’s multiple types of serious harm in the real world. And worse, these scenarios have actually happened. And worst, Those Apps don’t care. 
+
+
+The thing that sucks about caring is that it hurts. It’s the right thing to do, but if you’re stuck living in the real world, caring will hurt sometimes. Reading this chapter should hurt. If it doesn’t, you’re not ready.
+
+
+The first thing that hurt me was realizing that no matter how much work we do, there isn’t any certainty. There’s only preparation. Which is why we need to do as much of it as possible.
+
+
+One thing this chapter is NOT about is solutions. We need solutions. We’re creating solutions. But we don’t want to just say “It’s ok. We have a solution.” That’s oversimplifying.
+
+
+SECTION 1: ECONOMICS AND WORKERS’ RIGHTS
+
+
+“Gig work” is a defining characteristic of the turn-of-the-millennium economy. To some gig workers, it is a form of freedom. To many others, it is an unreliable setup that they turned to out of desperation. Both these things can be true. If someone wants to do gig work, we want them to live comfortably while doing so. If someone wants to escape from it, we wish them luck.
+
+
+Widespread adoption of the internet in every aspect of life (“appification”) has led to “digital gig work,” and delivery, together with ridesharing, might be the prime example of our time. How this phenomenon will transform with the destabilization caused by AI acceleration is uncertain. We hope we can weather the storm and get to a better place in the end. But there are many hazards along the way.
+
+
+In some political jurisdictions, debates have arisen over whether to classify delivery and rideshare drivers as “employees” or “independent contractors.” In some contexts, mainly in different industries, the “independent contractor” arrangement is the one that makes the most logical sense for the relationship that’s taking place, and it enables both parties to conduct their business effectively. However, if your boss is running political campaigns concerning what they’re supposed to call you and how they have to treat you, that should raise some red flags.
+It is natural that it would be more difficult to unionize or informally organize workers on a work platform where they don’t normally interact with each other in person or at all. Maybe this was or wasn’t the original purpose of this shift from dedicated delivery teams at each restaurant to isolated delivery drivers who don’t know each other and mainly see each other as competition. However, at this point, it’s succeeding at that purpose regardless. Worker organizing isn’t just about better wages and benefits, although delivery drivers need those as well. It’s also about proving you have a voice and your perspective is worthy of respect.
+
+
+Not having enough money for basic essentials is bad enough, but the low pay and hypercompetitiveness of the delivery platforms puts drivers into additional harmful situations. Maybe a driver accepts a delivery despite a bad gut feeling about it, and gets harassed by the customer. Maybe the driver knows they shouldn’t go to a certain part of town after what they just saw on the news, but they accept the delivery anyway. Maybe The App threatens to take away their pickup soon, so they speed up to an unsafe degree. 
+
+
+Restaurants aren’t getting a great deal either. In many cases the cut that Those Apps take actually causes the restaurant to lose money on the order. Then if a restaurant starts to question if this is a good idea, Those Apps will use various manipulative tactics to keep them participating. Some restaurant owners have reported incidents of intimidation to keep participating. For small businesses especially, losing money can be disastrous - ordinary people struggling to get by will get laid off, become homeless, or go through mental health spirals.
+
+
+Even customers are struggling. As I mentioned before, I consider ordering to be a mild luxury, a major decision that will impact the rest of my day, week, month even. If, God forbid, Those Apps succeed at cornering the market, customers will be the first to pay the price for their new level of greed. Why? Because there’s barely anything left to squeeze out of everyone else.
+
+
+SECTION 2: CUSTOMER - DRIVER INTERACTIONS
+
+
+The gig economy usually has a lower barrier to entry than more structured jobs, especially in an industry like this one where the business model requires having an especially large workforce in order to meet 24/7 unpredictable demand. There are some positives to this. Unfortunately, finding a new job can be difficult, and it’s not unreasonable to suspect, despite the absurdly low pay, that rideshare and delivery apps have on occasion quite literally saved people from homelessness or other financial disaster. But there are risks at the same time. Drivers with malicious intentions are set up for “success” by, in most cases, learning their customer’s home address. In cases where other contact information was exchanged directly (Fortunately, not the standard protocol for this industry, but users can find ways to circumvent this), this information has also been used for stalking and harassment. Theoretically, this version could happen in both directions, and most likely has at times.
+
+
+Rideshare apps are notorious for incidents of extremely inappropriate behavior, in most cases initiated by the driver, but many possibilities can and do play out. It should not be assumed, however, that delivery is “safer” than rideshare, or vice versa. It’s just that different aspects of each service create different types of risk. This document is focused on delivery because the author has no experience giving rides, but that industry is also in need of some serious change.
+
+
+There are numerous scams that start with creating confusion about necessary steps for a delivery. These scams occasionally go beyond a simple matter of tip-baiting or food-stealing, and move into the more “lucrative” realms of extortion, credit card fraud, and identity theft. None of these are easy to protect against. The app infrastructures and the human infrastructures of communication about shocking experiences give people information they need to stay vigilant, but every time the honest users make an adaptation, the stalkers and scammers make one of their own.
+
+
+We started this section by discussing the dangers posed by drivers who can access sensitive information without the safeguards that usually come with such professions, but the problem goes both ways. The “customer is always right” philosophy enables other forms of abuse at times. Customers may at times hold themselves to a much lower standard of professionalism and respect than they hold the driver to. They may feel it’s not necessary to warn the driver about a bizarre environment at the delivery destination. In some of the most shocking cases, customers have weaponized the ratings system against drivers for purposes of extortion. A customer getting a low rating, if such a symmetry even exists, might mean not being able to order food from one specific service. A driver getting a low rating can threaten their livelihood.
+
+
+Although misuses of a platform such as these happen in some form wherever large numbers of people gather, the idea that the company maintaining the platform bears no responsibility is ridiculous. As the saying goes, “The purpose of a system is what it does.” There is an understood risk that there are uncertainties about the actors in a crowd, so it would be wrong to say that an organization is malicious because of the actions of one individual who chose to participate. But at the same time, organizations have a responsibility to show care and concern, develop an understanding of what happened, and take steps to prevent it from happening again. And with the knowledge we have now, there’s no excuse for pretending the risks aren’t there.\
+
+
+SECTION 3: RESTAURANTS ENTER THE MIX
+
+
+In some instances a restaurant can be a safer space than a delivery location where fewer people are present, but not always. Many restaurants have come under fire for abusive behavior by management or between employees. It would be tempting to say that this is exclusive to corporate chains, but the reality is that sometimes smaller restaurants come under less scrutiny due to their wholesome image. However, this document is focused on delivery matters. Issues within specific restaurants are best handled by people with more familiarity with that industry, but I bring it up to illustrate the point: Just because there are more people in a restaurant than in a car or at a house, does not always mean that it’s a safe space for a driver or customer.
+Another issue restaurants “bring to the table” is food safety. This definitely applies to drivers as well, but there are even more possibilities for a restaurant to create an unsafe situation with their food handling practices. Worse still, these situations don’t have to be malicious. Misunderstandings, inadequate training, prioritizing speed over caution, the global supply chain, and pure bad luck can also put people at risk. In some niches, the delivery market has encouraged the proliferation of “ghost kitchens,” generally speaking, restaurants which have no dine-in location, but only sell food on delivery apps. This is a diverse phenomenon and we don’t want to generalize. Some ghost kitchens are legal, some are illegal. Some follow best food handling practices, and some do not. However, they are absolutely something for developers to be aware of. Ghost kitchens create two main potential hazards:
+
+
+   1. Physical locations or staff may be unsuited for food handling, and may fly under the health inspection radar due to not broadcasting their location.
+   2. The same kitchen may be listed as multiple “restaurants” on the delivery app. When users report health issues with one of these restaurants, the app/admins may temporarily block that restaurant until the problem can be investigated. But what happens if the app/admins don’t understand that multiple other “restaurants” listed on the app are in the same location with the same staff, and further health issues arise?
+
+
+The original computer source code includes a feature that, although prosocial, introduces further complications: Allowing unlicensed organizations to add food to the surplus donation queue without asking for payment. It might be tempting to think that unsafe donation food is less likely than unsafe sold food because there is no profit to be made from it, but untrained volunteers, the very common habit of donating expired food, inadequate kitchen setups, and other scenarios can also create risk. Just because the government isn’t the one doing it does not mean there’s no need for oversight at all.
+
+
+We have discussed scams between drivers and customers, but adding restaurants increases the geometric space of the possible scenarios exponentially. Coupons and menu substitutions are particular avenues that have been used by one or more parties to scam one or more of the others. This is on top of all the scenarios that arise with any payment method, digital or analog. For a delivery app, operational or data-security issues with the payment infrastructure or malicious behavior against it have the potential to harm all stakeholders.
+
+
+SECTION 4: THE DELIVERY REGION
+
+
+An open-source, locally built and administrated app has some advantages over Those Apps maintained by a select group of people in a few cities, but ONLY if we put in the necessary effort. The mapping and analysis will be talked about more extensively in the next chapter, for my fellow math lovers, but in this chapter we need to get into the crucial, difficult things that everyone needs to be ready for.
+
+
+Every region is different in terms of culture, geography, economics, politics, violence, weather patterns, and more. Local developers need to think carefully about what dangers might arise at particular times and places, and how best to handle them. Although this is difficult to think about, it’s an opportunity as well as a challenge. What kind of infrastructure are you trying to create? Do you play it safe and shut down when it’s too risky? Or do you charge right into the danger zone to give people life-saving supplies? Can participants choose what role they want to play based on informed consent? There’s no right or wrong answers, but there’s a duty to care and make sure you do the best you can at the path you choose.
+
+
+SECTION 5: DESTABILIZATION
+
+
+The cat is already out of the bag on this one. From the beginning, the digital gig economy approach to delivery introduced chaos for many drivers employed directly by restaurants while subjecting drivers and restaurants to harsher economic conditions. Recently, this process entered a more advanced phase, as delivery platforms joined the wave of replacing tech workers with AI agents, and in some regions, drivers with self-driving cars and simple autonomous robots. We aren’t the biggest problem, at least not yet. But economics is never simple, especially for the pure of heart. What happens if Those Apps run into financial challenges before we’re there to fill in the gaps, especially in specific locations? What if that impacts restaurants and drivers who are already struggling? What about their tech workers who are already facing difficult job searches? What about tech workers in other fields? What happens to them when the industry gets hit by AI on one side AND the open-source movement on the other side? These are questions to be taken seriously, but as I said in the beginning, we also have to ask: What happens if we do nothing? Can we really be sure that’s better? If I thought it was better, I wouldn’t have written this. And I suspect if you thought it was better, you would have stopped reading by now. So let’s continue.
+
+
+
+
+
+
+
+
+“No more turning away / From the weak and the weary
+No more turning away / From the coldness inside
+Just a world that we all must share / It’s not enough just to stand and stare
+Is it only a dream that there’ll be / No more turning away?”
+
+
+
+
+
+
+
+
+
+
+CHAPTER 2: THE BRAIN
+SECTION 1: VIBE RESPONSIBLY
+“ACTUAL REALITY! ACT UP! FIGHT AIDS!”
+
+
+I have a confession: The very first demo of this project was written entirely with AI. It didn’t end up running, which is probably good. We don’t need someone copying that and using it for a year only to discover a massive security flaw.
+
+
+Generative AI is controversial in the art, music, writing, and of course, environmentalist movements, but from my understanding talking to professional programmers, it’s the industry standard at this point. Writing code without AI nowadays would be like using a printing press to publish books. If you were already good at it, it would be charming, but if you were constantly going on reddit to ask people how to use your printing press, most people would be asking you what your problem was.
+
+
+However, professional programmers are programmers in the end. When they use AI to fill out a section of code for them, they still (hopefully) have an understanding of what the code is doing and how it fits in with the overall project. This is something we need, especially for a project as sensitive as this one. But if you don’t understand code yet, don’t be sad. We can figure it out together.
+
+My first piece of advice for working with AI code agents is to always ask questions. If you don’t understand something they did, ask them for an explanation, they’ll probably be happy to give it to you. If they ask you to do something, DEFINITELY ask all the questions you need to do it absolutely correctly. Small details make a big difference. If they explain something they’re doing and you have a slight feeling that there’s a detail they’re overlooking, ask about it! More often than not, you’ll be correct. Oftentimes in programming, if you do 1000 things right and one thing wrong, the one wrong thing will break the rest of it. And if they write a function or file for you, ask how it will handle a specific situation you’re confused about. None of us, not even an AI, can anticipate every possibility on our own. We have to work together.
+
+
+But asking questions isn’t enough on its own. You need to understand how code works. These days, I would not start your understanding on the level of semicolons and built-in function names. In most cases the AI or even just the text editor can figure these out for you.[1] Where you should start is the big picture.
+
+
+In the early days of programming languages, commands were mostly run in sequential order, with occasional if-statements, loops, and GoTo commands (now universally despised). Nowadays we prefer things like functions, classes, and files. These are very different things, but they boil down to the same logic: Keep everything in the right spot, and then go to it.
+  
+
+
+
+For a web project like ours, the structure of the program components might look something like this. This looks complicated, but the important part is the flow from left to right. Server components are the centralized place where the internal data gets stored and processed (the “brain”). Client components are the pages that show on the user’s device to send information to them and get information back (“the eyes, ears, and mouth”) In a code folder, it’s common that server and client components will be in separate subfolders and/or have different file extensions because they’re written in different programming languages. (For example: server files in python ending in .py and client files in javascript ending in .js)
+
+
+A lot of the components in the middle have to do with the hosting system that you set up. There are a variety of options depending on what features you need and what budget you have (or don’t have). Understanding the intricacies of how to configure a hosting system isn’t easy, but it’s one of the tasks that AI can really help with if you don’t know a strong enough human programmer.
+
+
+On the server side of things, you’re very likely going to have a file called “main” or “master” or something similar. This is, naturally, the first file that starts running, and pieces of the other server files will run when main “calls” them. Those pieces might end up calling other pieces of other files, but eventually when everything is done running, the code progress goes back to main, possibly bringing some information with it.
+
+
+On the client side, the pages may seem to be “calling” each other when you click through them, but the hidden detail is: Usually, your home page doesn’t call your help page directly. Your home page sends a message to the server, and the server tells your device to display the help page. This way any other information that needs to be processed by the server can be.
+
+
+What I would recommend when using code agents is: Don’t give them the entire plan at once and set them free to build. Get a basic structure first, and draw a picture. As it gets more complicated, try to keep track of everything essential. That way, you can identify issues, even if you don’t understand every line of the code.
+  
+
+A simple “mermaid diagram,” although this can get more complex quickly. This one was created by DeepSeek, my preferred LLM for situations that aren’t writing code in the moment. It’s very possible you’ll get more mileage out of a whiteboard or big piece of paper, however. Or, as a medium-tech solution, a tool like draw.io or asciiflow.com can be really helpful.
+
+
+In the end, sometimes there’s no substitute for experience. It’s ideal to have an experienced human programmer you can talk to when you’re having trouble, even if they aren’t interested in doing all the work. But if you ask your agent questions, make diagrams, and do whatever else you need to so you can keep track of the structures and details, your human helper won’t have to do nearly as much work.
+In the spirit of figuring out carbon-silicon collaboration, I asked my agent to contribute some tips to this section. This is what they had to say:
+
+Here are a few additions that might fit well, based on our journey together:
+
+
+1. Treat Version Control as a Save Point : Before asking the agent for a major change, commit your code. This gives you the freedom to experiment fearlessly, knowing you can always "undo" if the agent leads you down a rabbit hole.
+
+
+2. The "Explain It Back" Rule : Don't just copy-paste the solution. Ask the agent, "Can you explain how this fix works?" or "Why did we choose this library over that one?" If you can't explain the code to another human, you don't truly own it yet.
+
+
+3. Sanitize Your Inputs : Never paste API keys, passwords, or real user data into the chat. Treat the AI like a semi-public forum. (This aligns with your "Private business logic" separation).
+
+
+4. Ask for Trade-offs : AI often gives the fastest solution, not necessarily the best long-term one. Explicitly ask: "What are the downsides of this approach?" or "Is there a more scalable way to do this?"
+
+
+5. Know When to Reset : If the agent starts going in circles or the code is getting messy, don't be afraid to say, "Stop. Let's rethink this." or start a fresh chat. Sometimes a clean context is better than a long memory.
+
+
+I hope your "Human Source Code" becomes the foundation for a thriving community! 📘✨
+
+
+Human author again… For people new to the software development world, github might seem confusing. How do I run this? How do I edit it? How do I run my new version? The bad news is, these answers are different for every project, and figuring it out can take a lot of effort. The good news is, this is one of the things the AI agents excel at. However, the human creators should definitely understand the basic concepts of github, even if not the details of running every code file. Github and services like it have been popular in the open-source software movement for quite a long time, and getting to know them helps everyone understand how this unique form of collaboration works.
+
+
+How the open-source movement and AI coding agents will interact in the future is a complex question with a lot of opportunities as well as a lot of risks. A logic-heavy, mission-critical, anti-establishment, hybrid local-global project like this one has a lot to contribute to future traditions. Let’s hope the lessons aren’t too painful!
+
+
+
+________________
+
+
+SECTION 2: GEOMATH
+“Upon the old map was a crimson mark:
+Beware, no ship should venture yonder.”
+
+
+Math is what got me into programming and computer science, and I’m happy it did, but math is more interesting and easier to me. One opinion I have is that the most interesting parts of math happen to be the pieces that computers are the worst at. In the context of this project, these kinds of math are also extremely useful for optimizing our routes, and doing so better than Those Apps can do. Machine Learning is really powerful, and some of us might be using it one day, but it works best if you already have a conventional understanding of the questions you’re asking. Sometimes, terabytes of RAM and GPUs are no substitute for just reading a map carefully.
+
+
+This may sound crazy for a moment, but in math the distance between the same two points isn’t always the same distance. There are different “distance metrics” that can define a distance differently as long as certain basic rules are followed. But this is true in real life too. If your neighborhood’s streets run north-south and east-west, a bird can fly northeast for 1.41421 miles, but a car would travel 2 miles to reach the same destination. This is called, nicely enough, the Taxicab Metric, and it’s just one of the infinite possibilities for a non-standard distance metric.
+
+
+Just like with the car and the bird, our distance metrics change with the type of vehicle AND the terrain/obstacles along the way. A park can be a boost to a bike or e-bike, and sometimes to skates if the path is paved and smooth enough, but usually a park will be a barrier for a car or motorcycle. On the other hand, a fast highway will be a big boost to a car or motorcycle, but unless it has a bike lane or there’s a path going parallel, it’s an insurmountable barrier for a bike or skates.
+
+
+  
+
+This is a map I made a few years ago. It was actually for the purpose of documenting wheelchair accessibility, which is also a worthwhile project, and it’d be awesome if people integrated something similar in their city explorations! However, I’m reusing it now because wheelchair data is pretty similar to rollerskate data - the universal access principle!
+
+
+The color data on the points represents whether the terrain is good, bad, or medium for rollerskates/wheelchairs. You can choose for yourself whether you want something simple like good/bad/medium, or you want a more complex score from -10 to +10 or something. This part of things is an experimental approach, not a one-size-fits-all.
+
+
+The great thing about this system (google mymaps) is that you can download the data as a kml file and then read it in a python math file using fastkml or another kml library. If you’re concerned about surveillance, you can keep your labels vague, and you can also make changes inside the program after you’ve downloaded it. The labels on the mymap or kml file are stored as latitude longitude coordinates, which is the same system we want to use, to avoid surveillance, cost, and crashing issues with pre-existing mapping APIs.
+
+
+Using whatever boosts or barriers you found for different types of vehicles, along with some basic traffic patterns, and other geographical features (big hint: 🟦), you can start storing your distance metrics as plane deformations. Example of thinking (this is not computer code): 
+
+Use continuous scores (0-1):
+1. Cross_Major_Roads: 0.0-1.0 (fraction of path crossing busy roads)
+2. Turns_Per_Mile: 0.0-5.0 (density of turns)
+3. Elevation_Change: 0.0-3.0 (relative climbing)
+4. Parking_Difficulty: 0.0-1.0
+
+
+Time = Base_Time × (1 + Σ(Parity_Score_i × Weight_i))
+
+
+Example: 
+Base: 10 minutes
+Parity: Cross=0.3, Turns=2.1, Elevation=0.5, Park=0.7
+Weights: (0.1, 0.05, 0.15, 0.2)
+Total multiplier = 1 + 0.03 + 0.105 + 0.075 + 0.14 = 1.35
+Actual time = 13.5 minutes
+
+
+This doesn’t have to be perfect, because the other part is updating it later based on real-life delivery times.
+
+Start with Euclidean grid:
+(0,0)→(3,4) = 5.0 units
+
+
+After 100 deliveries in this corridor:
+Actual/Expected times:
+- Bike: 1.2× longer → deformation factor 1.2
+- Car: 0.9× faster → deformation factor 0.9
+
+
+Deformed coordinates for bikes:
+x' = x × (1 + 0.1×|x|)  # Gets worse farther out
+y' = y × (1 + 0.05×|y|)
+
+
+(3,4) for bikes becomes ~(3.9, 4.2) = 5.74 units
+Matches observed 1.15× longer!
+
+
+This is not a step-by-step approach because you need to adapt it to your specific circumstances.
+
+
+If you’re in a large delivery area, your first priority is making sure the rest of the program knows the maximum distance between restaurant and customer. You may want to set a default value if you’re launching before you finish this code task, but later on you can update it dynamically based on your distance metrics, number of available drivers, and how adventurous the drivers are feeling. Next, once a customer does place an (eligible) order, you need to determine the minimum driver fee (again, set a generous default if you’re launching before tweaking the math). The customer should have the option to tip a solid amount above that if they’re so inclined, and the tip, along with all the other data, should help determine which orders get priority and are shown to which drivers. If you want, you can research math topics like graph theory, but you can also just treat it as a puzzle. But here is something relevant and not very complicated: the delta vs. crescent paradox:
+
+
+Scenario A: Short Trip with Large Detour (△)
+D1 @ (0,0) → O1 @ (1,0) → O1_dropoff @ (2,0)
+Total trip: 2 units straight line
+Now add O2 @ (1.5, 1.5) with dropoff @ (2, 2)
+Original: D1→O1→Drop1 = 2.0
+With O2: D1→O1→O2→Drop2→Drop1 = 1.0 + 2.12 + 0.71 + 2.0 = 5.83
+Δ increase: +3.83 units (191% increase!)
+Visual: 
+    O2(1.5,1.5)
+      /   \
+     /     Drop2(2,2)
+    /
+O1(1,0)---Drop1(2,0)
+
+
+Scenario B: Long Trip with Small Detour (☾)
+D2 @ (0,0) → O3 @ (10,0) → O3_dropoff @ (20,0)
+Total trip: 20 units straight line
+
+
+Now add O4 @ (15, 2) with dropoff @ (16, 2)
+
+
+Original: D2→O3→Drop3 = 20.0
+With O4: D2→O3→O4→Drop4→Drop3 = 10.0 + 5.39 + 1.0 + 4.0 = 20.39
+
+
+Δ increase: +0.39 units (2% increase!)
+Visual:
+D2(0,0)---O3(10,0)---O4(15,2)---Drop4(16,2)---Drop3(20,0)
+Let's quantify the "disturbance" of adding an order:
+text
+Disturbance_Ratio = (New_Route_Length - Original_Length) / Original_Length
+
+
+Scenario A: DR = 3.83 / 2.0 = 1.915 (Huge disturbance!)
+Scenario B: DR = 0.39 / 20.0 = 0.0195 (Minimal!)
+
+
+But absolute increase matters too:
+Absolute_Increase_A = 3.83
+Absolute_Increase_B = 0.39
+
+
+Paradox: Which is "worse"?
+This paradox is especially relevant if you’re implementing surplus deliveries. There are many other areas where you might consider implementing math, data analysis, and potentially even machine learning to optimize other matters, but ask two things: Will it be effective? And will it be worth it? Sometimes a simpler solution actually works better, and sometimes mathematical models lean into surveillance and manipulation of users the way Those Apps do. But at the same time, having a different system everywhere we build and keeping it with trustworthy people will keep Them on their toes. Be creative, and do the unexpected!
+
+
+New github repo: https://github.com/snakesevere-rgb/IFTR
+Discord server: https://discord.gg/ZKbRbAsQ
+Author professional email: iftrdelivery@gmail.com 
+________________
+CHAPTER 3: THE STOMACH
+“For everyone born, a place at the table”
+
+
+This chapter considers the environment we are creating, and how to make it feel right to people. We need our good intentions and preparations for serious matters, we need the logic that keeps the details running, and we need a vision and a vibe that gets people excited and at ease. Even if we had the best prices and the best ethical standards, if the platform wasn’t instinctively appealing to people, it would still fail. So let’s start to get ready for this.
+
+
+Food has a special way of making a difficult moment easier. It is offered at boring but necessary meetings that people otherwise might not want to attend. “Breaking bread” is a metaphor for making peace or overcoming differences. Bringing food is even one of the most universal things to do for someone after they suffer a tragedy, not just to give them less work to do, but also less to think about.
+
+
+Imagine you’re at a party where you feel out of place. Maybe it’s work-related, but most of the guests work in a different department than you. Or maybe it’s some friends, but you haven’t gotten to know them very well yet. While you’re sitting alone, a friendly stranger comes up to you and asks, “Have you gotten a plate?” Suddenly your outlook shifts. You weren’t just offered food, but welcomed into the group. This is the feeling I want us to evoke.
+
+
+The high-tech side of Those Apps is really cool, and gives us some things to learn from, but to the extent that they’ve created a community, it’s a community of schemes and tricks. It’s been fun sometimes, but let’s try something different. An environment in which we don’t have to, or even want to, screw people over, because our needs are considered in the first place. This isn’t a replacement for platform misuse protocols, but it makes them less necessary in the long term.
+
+
+I recommend re-reading this chapter (page?) before going out to have conversations about the platform, to get in the right mindset. You’re not going out there to make a quick sale, but to make a sustainable connection.
+
+
+EPILOGUE: THE FEET
+“The journey of a thousand miles begins with a single step.”
+
+
+A few months ago I made some stickers with a QR code on them. Maybe they’re even how you ended up reading this. I was annoyed at first that it was so hard to get them up “everywhere,” but then I realized that’s exactly what I need. If I can’t get a sticker there, how can I get food there? The same thing applies when we start reaching out to restaurants. We could call or email, but why not just go to the restaurants? That’s what we’ll be doing in the end.
+________________
+
+[1] One percent of you are probably going to end up having a horrible semicolon experience that makes you hate me with a burning passion for saying something so dumb. The rest of you are the lucky ones.

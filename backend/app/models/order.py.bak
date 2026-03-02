@@ -1,0 +1,465 @@
+MAX_TIP_AMOUNT = 200
+MAX_TIP_PERCENTAGE = 200
+
+from typing import List, Dict, Optional, TYPE_CHECKING, Any
+from decimal import Decimal
+from pydantic import field_validator
+from ..core.encryption import encrypt_instructions, decrypt_instructions
+from ..core.ids import generate_id
+from datetime import timezone
+from pydantic import Field, field_validator, ConfigDict, validator
+
+# models/delivery.py
+from pydantic import Field
+from datetime import datetime
+
+# Import from general
+from .payment import PaymentStatus
+from .encrypted_models import EncryptedLocation
+from .general import DeliveryInstructionType, OrderStatus, IFTRBaseModel
+
+if TYPE_CHECKING:
+    from .delivery import Delivery
+
+import logging
+
+
+logger = logging.getLogger(__name__)
+
+class SelectedOption(IFTRBaseModel):
+    """A user's selection for a menu item option"""
+    option_id: str
+    option_name: str
+    selected_choices: List[Dict[str, Any]] = Field(default_factory=list)  # Selected choice objects
+    selected_quantity: int = 0  # For quantity type
+    selected_text: str = ""  # For text type
+    selected_boolean: bool = False  # For boolean type
+    extra_cost: float = 0.0
+
+    @property
+    def display_summary(self) -> str:
+        """Generate a human-readable summary of the selection"""
+        if self.selected_choices:
+            names = [choice.get('name', '') for choice in self.selected_choices]
+            return f"{self.option_name}: {', '.join(names)}"
+        elif self.selected_quantity > 0:
+            return f"{self.option_name}: {self.selected_quantity}x"
+        elif self.selected_text:
+            return f"{self.option_name}: {self.selected_text[:20]}..."
+        elif self.selected_boolean:
+            return f"{self.option_name}: Yes"
+        return f"{self.option_name}"
+
+
+class CustomizedOrderItem(IFTRBaseModel):
+    """Order item with user-selected customizations"""
+    item_id: str
+    name: str
+    base_price: float
+    quantity: int
+
+    # Customizations
+    selected_options: List[SelectedOption] = Field(default_factory=list)
+    special_instructions: str = ""  # Free text instructions
+
+    # Modifiers applied
+    applied_modifiers: List[str] = Field(default_factory=list)  # modifier_ids
+
+    @property
+    def total_price(self) -> float:
+        """Calculate total price including customizations"""
+        item_total = self.base_price * self.quantity
+
+        # Add option costs
+        for option in self.selected_options:
+            item_total += option.extra_cost * self.quantity
+
+        return item_total
+
+    @property
+    def customization_summary(self) -> List[str]:
+        """Get list of customization descriptions"""
+        summaries = []
+
+        # Add option summaries
+        for option in self.selected_options:
+            summary = option.display_summary
+            if summary:
+                summaries.append(summary)
+
+        # Add special instructions if present
+        if self.special_instructions:
+            summaries.append(f"Note: {self.special_instructions[:30]}...")
+
+        return summaries
+
+    @property
+    def is_customized(self) -> bool:
+        """Check if item has any customizations"""
+        return bool(self.selected_options or self.special_instructions)
+
+class OrderItem(IFTRBaseModel):
+    item_id: str
+    name: str
+    quantity: int
+    base_price: float  # Base price without customizations
+
+    # Customizations
+    selected_options: List[SelectedOption] = Field(default_factory=list)
+    special_instructions: str = ""
+    applied_modifiers: List[str] = Field(default_factory=list)
+
+    # Calculated fields
+    is_surplus: bool = False
+    is_drink: bool = False # important for delivery planning
+
+    @property
+    def price(self) -> float:
+        """Calculate final price including customizations"""
+        item_total = self.base_price * self.quantity
+
+        # Add option costs
+        for option in self.selected_options:
+            item_total += option.extra_cost * self.quantity
+
+        return item_total
+
+    @property
+    def customization_cost(self) -> float:
+        """Calculate additional cost from customizations"""
+        return sum(option.extra_cost for option in self.selected_options) * self.quantity
+
+    @property
+    def description(self) -> str:
+        """Generate descriptive text including customizations"""
+        if not self.selected_options and not self.special_instructions:
+            return self.name
+
+        parts = [self.name]
+
+        # Add customization summaries
+        for option in self.selected_options:
+            summary = option.display_summary
+            if summary:
+                parts.append(f"  • {summary}")
+
+        # Add special instructions
+        if self.special_instructions:
+            parts.append(f"  • Note: {self.special_instructions}")
+
+        return "\n".join(parts)
+
+class Order(IFTRBaseModel):
+    """
+    Order model with encrypted sensitive data.
+    This is the internal/database representation.
+    """
+    model_config = ConfigDict(extra="ignore")
+
+    # Core identifiers
+    order_id: str = Field(default_factory=lambda: generate_id("order"))
+    restaurant_id: str
+    customer_id: str
+    driver_id: Optional[str] = None
+
+    # Order content
+    items: List[OrderItem]
+    subtotal: Decimal = Field(ge=0)
+    tax_amount: Decimal = Field(ge=0)
+    delivery_fee: Decimal = Field(ge=0)
+    tip_amount: Decimal = Field(default=Decimal("0.0"), ge=0)
+    total_amount: Decimal = Field(ge=0)
+
+    # Payment
+    payment_status: PaymentStatus = PaymentStatus.PENDING
+    payment_method: Optional[str] = None
+    payment_intent_id: Optional[str] = None
+
+    # Location (encrypted)
+    pickup_location: EncryptedLocation
+    delivery_location: EncryptedLocation
+    distance_km: Optional[float] = Field(None, ge=0)
+
+    # Delivery details
+    delivery_instruction_type: DeliveryInstructionType = DeliveryInstructionType.HAND_TO_CUSTOMER
+    delivery_instructions_encrypted: str = Field(default="", max_length=1000)
+
+    # Donation
+    is_donation: bool = False
+    donation_org_id: Optional[str] = None
+
+    # Timing
+    scheduled_for: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    accepted_at: Optional[datetime] = None
+    picked_up_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+
+    # Status
+    order_status: OrderStatus = OrderStatus.PENDING
+    cancellation_reason: Optional[str] = None
+    cancelled_at: Optional[datetime] = None
+
+    # Ratings
+    restaurant_rating: Optional[int] = Field(None, ge=1, le=5)
+    customer_rating: Optional[int] = Field(None, ge=1, le=5)
+
+    # Platform
+    platform_fee: Decimal = Field(default=Decimal("0.0"), ge=0)
+    commission_rate: float = Field(default=0.15, ge=0, le=1)  # 15% default
+
+    # --- Properties for encrypted fields ---
+    @property
+    def delivery_instructions(self) -> str:
+        """Decrypt instructions when accessed."""
+        return decrypt_instructions(self.delivery_instructions_encrypted)
+
+    @delivery_instructions.setter
+    def delivery_instructions(self, value: str):
+        """Encrypt instructions when setting."""
+        if value is None:
+            value = ""
+        cleaned = value.strip()
+
+        # Validate length
+        if len(cleaned) > 500:
+            raise ValueError("Delivery instructions exceed 500 character limit")
+
+        self.delivery_instructions_encrypted = encrypt_instructions(cleaned)
+
+    # --- Validators ---
+    @field_validator('tip_amount')
+    @classmethod
+    def validate_tip_reasonable(cls, v: float, info) -> float:
+        """Validate tip amount is reasonable"""
+        # Get items from the values being validated
+        if hasattr(info, 'data'):
+            items = info.data.get('items', [])
+        else:
+            # Fallback for older pydantic versions
+            items = []
+
+        # Calculate subtotal
+        subtotal = Decimal('0.00')
+        for item in items:
+            price = Decimal(str(item.get('price', 0)))
+            quantity = Decimal(str(item.get('quantity', 1)))
+            subtotal += price * quantity
+
+        if subtotal == 0:
+            return v  # No items, tip can be 0
+
+        # Add tax (8%) and base fees ($7 = $5 driver + $2 restaurant)
+        tax = subtotal * Decimal('0.08')
+        base_fees = Decimal('7.00')
+        order_total = subtotal + tax + base_fees
+
+        # Calculate max tip
+        max_tip = float(order_total) * (MAX_TIP_PERCENTAGE / 100)
+
+        if v > max_tip:
+            raise ValueError(
+                f"Tip cannot exceed {MAX_TIP_PERCENTAGE}% of order total "
+                f"(~${float(order_total):.2f}). Max tip: ${max_tip:.2f}"
+            )
+        return v
+
+    @field_validator('delivery_instructions_encrypted')
+    @classmethod
+    def validate_encrypted_length(cls, v: str) -> str:
+        """Ensure encrypted data isn't suspiciously large."""
+        if v and len(v) > 1000:
+            raise ValueError("Encrypted instructions too large")
+        return v
+
+    # --- Helper methods ---
+    def to_response(self) -> "OrderResponse":
+        """Convert to safe API response model."""
+        return OrderResponse(
+            order_id=self.order_id,
+            restaurant_id=self.restaurant_id,
+            customer_id=self.customer_id,
+            # ... include all public fields
+            # EXCLUDE: delivery_instructions_encrypted, pickup/delivery location raw
+            delivery_instructions=self.delivery_instructions,  # Decrypted!
+            # ... etc
+        )
+
+    def calculate_total(self) -> Decimal:
+        """Recalculate total amount from components."""
+        return (
+                self.subtotal +
+                self.tax_amount +
+                self.delivery_fee +
+                self.tip_amount +
+                self.platform_fee
+        )
+
+    # Add delivery reference
+    delivery_id: Optional[str] = None
+
+    @property
+    def delivery_status(self) -> Optional[str]:
+        """Get delivery status if linked to a delivery"""
+        # This would be populated from a relationship in practice
+        return None
+
+class OrderCreateRequest(IFTRBaseModel):
+    """What the client sends to create an order"""
+    restaurant_id: str
+
+    items: List[OrderItem]
+    @field_validator('items')
+    @classmethod
+    def validate_items_not_empty(cls, v: List[OrderItem]) -> List[OrderItem]:
+        if not v:
+            raise ValueError("Order must contain at least one item")
+        return v
+
+    # Location data (will be encrypted server-side)
+    delivery_lat: float = Field(description="Will be encrypted immediately upon receipt")
+    delivery_lng: float = Field(description="Will be encrypted immediately upon receipt")
+
+    delivery_address: str = Field(
+        default="",
+        max_length=200
+    )
+
+    delivery_city: str = ""
+    delivery_zip: str = ""
+
+    # Other order details
+    is_donation: bool = False
+    donation_org_id: Optional[str] = None
+
+    delivery_instructions: str = Field(
+        default="",
+        max_length=500,
+        description="Optional delivery notes. Will be encrypted before storage."
+    )
+    @field_validator('delivery_instructions')
+    @classmethod
+    def sanitize_instructions(cls, v: str) -> str:
+        """Clean up instructions before processing."""
+        if v is None:
+            return ""
+
+        # Trim whitespace
+        cleaned = v.strip()
+
+        # Optional: Remove excessive newlines
+        # cleaned = ' '.join(cleaned.split())
+
+        return cleaned
+
+    tip_amount: Decimal = Field(
+        default=Decimal("0.0"),
+        ge=0,
+        le=MAX_TIP_AMOUNT,
+        description=f"Tip amount, max ${MAX_TIP_AMOUNT}"
+    )
+
+    scheduled_for: Optional[datetime] = None  # Let Pydantic parse ISO string
+
+    model_config = {
+        "json_schema_extra": {
+            "security_note": "Location coordinates are encrypted immediately upon server receipt"
+        }
+    }
+
+class OrderResponse(IFTRBaseModel):
+    """
+    Safe API response model for orders.
+    Excludes sensitive/encrypted fields and internal data.
+    """
+    # Core identifiers
+    order_id: str
+    restaurant_id: str
+    customer_id: str
+    driver_id: Optional[str] = None
+
+    # Order summary
+    items: List[OrderItem]
+    subtotal: Decimal
+    tax_amount: Decimal
+    delivery_fee: Decimal
+    tip_amount: Decimal
+    total_amount: Decimal
+
+    # Payment status (safe)
+    payment_status: PaymentStatus
+
+    # Delivery information (safe/decrypted)
+    delivery_address: str = ""  # From delivery_location.address
+    delivery_city: str = ""  # From delivery_location.city
+    delivery_zip: str = ""  # From delivery_location.zip_code
+    distance_km: Optional[float] = None
+
+    # Delivery instructions (decrypted)
+    delivery_instruction_type: DeliveryInstructionType
+    delivery_instructions: str = ""  # Decrypted!
+
+    # Donation info
+    is_donation: bool = False
+    donation_org_id: Optional[str] = None
+
+    # Timing
+    scheduled_for: Optional[datetime] = None
+    created_at: datetime
+    accepted_at: Optional[datetime] = None
+    picked_up_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+
+    # Status
+    order_status: OrderStatus
+    cancellation_reason: Optional[str] = None
+
+    # Ratings (if visible)
+    restaurant_rating: Optional[int] = None
+    customer_rating: Optional[int] = None
+
+    # Platform fees (transparent)
+    platform_fee: Decimal
+
+    model_config = ConfigDict(
+        json_encoders={
+            Decimal: lambda v: str(v),  # Convert Decimal to string for JSON
+            datetime: lambda v: v.isoformat()  # ISO format dates
+        }
+    )
+
+    @classmethod
+    def from_order(cls, order: "Order") -> "OrderResponse":
+        """Create response from internal Order model."""
+        return cls(
+            order_id=order.order_id,
+            restaurant_id=order.restaurant_id,
+            customer_id=order.customer_id,
+            driver_id=order.driver_id,
+            items=order.items,
+            subtotal=order.subtotal,
+            tax_amount=order.tax_amount,
+            delivery_fee=order.delivery_fee,
+            tip_amount=order.tip_amount,
+            total_amount=order.total_amount,
+            payment_status=order.payment_status,
+            # Extract safe location info
+            delivery_address=order.delivery_location.address if order.delivery_location else "",
+            delivery_city=order.delivery_location.city if order.delivery_location else "",
+            delivery_zip=order.delivery_location.zip_code if order.delivery_location else "",
+            distance_km=order.distance_km,
+            delivery_instruction_type=order.delivery_instruction_type,
+            delivery_instructions=order.delivery_instructions,  # Decrypted via property
+            is_donation=order.is_donation,
+            donation_org_id=order.donation_org_id,
+            scheduled_for=order.scheduled_for,
+            created_at=order.created_at,
+            accepted_at=order.accepted_at,
+            picked_up_at=order.picked_up_at,
+            delivered_at=order.delivered_at,
+            order_status=order.order_status,
+            cancellation_reason=order.cancellation_reason,
+            restaurant_rating=order.restaurant_rating,
+            customer_rating=order.customer_rating,
+            platform_fee=order.platform_fee,
+        )

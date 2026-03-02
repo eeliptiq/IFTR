@@ -1,0 +1,16 @@
+Metadata-Version: 2.3
+Name: kml
+Version: 0.0.1
+Summary: KiteML Python Package
+Project-URL: homepage, https://github.com/kiteml/kite
+Project-URL: repository, https://github.com/kiteml/kite
+Author-email: Kite <kite@kiteml.io>
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+
+# KiteML Python Package
+
+This package can be installed using either:
