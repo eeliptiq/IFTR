@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from decimal import Decimal
 import math
 
-from models.delivery import Delivery, DeliveryType, DeliveryStatus
-from models.driver import Driver, RoutePreferences
+from app.models.delivery import Delivery, DeliveryType, DeliveryStatus
+from app.models.driver import Driver, RoutePreferences
 
 
 class DeliverySorter:

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from app.core.ids import generate_id
 from datetime import datetime, timezone
-from user import UserRole
+from app.models.general import UserRole
 
 # Community Support Models
 class Message(BaseModel):

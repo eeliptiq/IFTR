@@ -6,8 +6,8 @@ Privacy-focused WebSocket events
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone, timedelta
 from pydantic import Field
-from models.delivery import Delivery, DeliveryStatus
-from models.general import IFTRBaseModel
+from app.models.delivery import Delivery, DeliveryStatus
+from app.models.general import IFTRBaseModel
 
 
 class PrivacyWebSocketEvent(IFTRBaseModel):

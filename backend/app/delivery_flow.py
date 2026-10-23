@@ -7,10 +7,10 @@ from decimal import Decimal
 import logging
 import re
 
-from models.delivery import Delivery, DeliveryStatus, DeliveryType, DeliveryProof, ProofType
-from models.order import Order, OrderStatus
-from models.driver import Driver
-from models.user import UserRole
+from app.models.delivery import Delivery, DeliveryStatus, DeliveryType, DeliveryProof, ProofType
+from app.models.order import Order, OrderStatus
+from app.models.driver import Driver
+from app.models.user import UserRole
 
 logger = logging.getLogger(__name__)
 

@@ -1,0 +1,186 @@
+name: Tests
+
+# The suite is what the merge slices lean on, so it runs whenever either side of
+# the app changes. Documents and notebooks do not need a runner.
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+# A second push to the same branch makes the first run pointless.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # The interpreter backend/requirements.txt was verified against.
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: Run the suite
+        working-directory: backend
+        run: python -m pytest -q
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # --legacy-peer-deps because the lock has react-day-picker@8 asking for
+      # date-fns 2 or 3 while the app pins date-fns 4. npm 7+ refuses that pair
+      # outright; the tree it resolves is the one the dev server already runs.
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+
+      # The API origin is baked into the bundle, and it differs by what is being
+      # built: `main` publishes the site and talks to the real API, while a pull
+      # request publishes a preview that must not write to production's data. So
+      # a PR build points at the preview API instead - the same backend, a
+      # separate deployment of it - and the two never stand in for each other.
+      - name: Choose the API this bundle talks to
+        id: api
+        env:
+          ON_MAIN: ${{ github.ref == 'refs/heads/main' }}
+          PRODUCTION_API: ${{ vars.REACT_APP_BACKEND_URL }}
+          PREVIEW_API: ${{ vars.PREVIEW_BACKEND_URL }}
+        run: |
+          if [ "$ON_MAIN" = "true" ]; then
+            origin="$PRODUCTION_API"
+            role=production
+            variable=REACT_APP_BACKEND_URL
+          else
+            origin="$PREVIEW_API"
+            role=preview
+            variable=PREVIEW_BACKEND_URL
+          fi
+
+          if [ -z "$origin" ]; then
+            # Deliberately not falling back to the other API: a preview that
+            # quietly talked to production is how a review writes to real data.
+            origin="http://localhost:8000"
+            echo "::warning::No $role API origin is configured (repository variable $variable), so this bundle will talk to http://localhost:8000 and cannot reach an API."
+          fi
+
+          echo "origin=$origin" >> "$GITHUB_OUTPUT"
+          echo "role=$role" >> "$GITHUB_OUTPUT"
+          echo "Building for $role against $origin"
+
+      # The bundle is the only thing that proves every page, import and
+      # stylesheet still resolves: the dev server compiles lazily and the
+      # browser test only opens four routes.
+      - name: Build the production bundle
+        working-directory: frontend
+        env:
+          # CRA turns each warning into a failed build when CI is set, and the
+          # pages carry react-hooks warnings from the port. Broken imports are
+          # what this job is for, not warning debt.
+          CI: "false"
+          # Already resolved above, so the bundle and the deploy agree on which
+          # API this build belongs to.
+          REACT_APP_BACKEND_URL: ${{ steps.api.outputs.origin }}
+          # This bundle is published, so it should not ship a readable copy of
+          # the sources, and the artifact stays small.
+          GENERATE_SOURCEMAP: "false"
+        run: npm run build
+
+      - name: Check the bundle was produced
+        working-directory: frontend
+        run: test -f build/index.html && ls -la build/static/js
+
+      # Handed to the deploy workflow, so what gets published is this bundle
+      # rather than a second build that could differ from the tested one.
+      - name: Keep the bundle for the deploy workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build
+          retention-days: 7
+
+  browser:
+    name: Journeys through the UI
+    # The browser test is slow and needs node as well; it is worth running only
+    # once the API underneath it is known good.
+    needs: backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: python -m pip install -r requirements.txt
+
+      # Chromium plus the system libraries it needs on a bare runner.
+      - name: Install the browser
+        working-directory: backend
+        run: python -m playwright install --with-deps chromium
+
+      # --legacy-peer-deps because the lock has react-day-picker@8 asking for
+      # date-fns 2 or 3 while the app pins date-fns 4. npm 7+ refuses that pair
+      # outright; the tree it resolves is the one the dev server already runs.
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+
+      # One session fixture starts uvicorn and `craco start` on free ports,
+      # against a throwaway database, and all three modules share them; the
+      # tests only need RUN_UI_E2E to stop skipping. The dev server runs with
+      # CI=false, so warnings do not fail that compile the way they would for a
+      # bare `npm start` on a runner.
+      - name: Place an order, administer the console and deliver surplus
+        working-directory: backend
+        env:
+          RUN_UI_E2E: "1"
+        run: >-
+          python -m pytest
+          tests/test_e2e_checkout.py
+          tests/test_e2e_admin_console.py
+          tests/test_e2e_surplus.py
+          tests/test_e2e_community.py
+          -q

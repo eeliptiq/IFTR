@@ -33,9 +33,10 @@ class PaymentMethod(str, Enum):
     APPLE_PAY = "apple_pay"  # Apple Pay
     GOOGLE_PAY = "google_pay"  # Google Pay
     PAYPAL = "paypal"  # PayPal
-    CASH = "cash"  # Cash on delivery
+    CASH = "cash"  # Cash on delivery (not preferred)
     CREDIT = "credit"  # Platform credit/balance
     BANK_TRANSFER = "bank_transfer"  # Bank transfer
+    CRYPTO = "crypto" # Crypto: need to select platforms and add functionality
 
 
 class Currency(str, Enum):

@@ -1,0 +1,125 @@
+# Real nodes for the crypto burn-in: two chains, two merchant wallets and one
+# customer wallet, all on regtest.
+#
+# This is test scaffolding, not a deployment. Every port is published to
+# 127.0.0.1 only and every credential is the word "burnin"; none of it should
+# ever leave a test machine. Read the section in the README before changing a
+# pin here: the image tags are upstream projects, and "latest" moving is exactly
+# how a burn-in starts failing for a reason that has nothing to do with this app.
+#
+#   docker compose -p iftr-burnin -f backend/burnin/compose.yaml up -d
+#   docker compose -p iftr-burnin -f backend/burnin/compose.yaml down -v
+#
+# `tests/burnin_stack.py` runs those two commands itself, with a random project
+# name and free host ports, and is what `RUN_CRYPTO_BURNIN=1` drives.
+
+services:
+  # ---------------------------------------------------------------------------
+  # Bitcoin Core, regtest.
+  #
+  # `-fallbackfee` exists because regtest has no fee estimation to consult; a
+  # `sendtoaddress` without it is refused. The wallets themselves are created by
+  # the harness over RPC: one with keys (the merchant's, for the burn-in) and one
+  # watch-only, which is the wallet the app is pointed at.
+  # ---------------------------------------------------------------------------
+  bitcoin:
+    image: ${BURNIN_BTC_IMAGE:-bitcoin/bitcoin:31.1}
+    command:
+      - -printtoconsole
+      - -regtest=1
+      - -server=1
+      - -rpcbind=0.0.0.0
+      - -rpcallowip=0.0.0.0/0
+      - -rpcuser=${BURNIN_BTC_USER:-burnin}
+      - -rpcpassword=${BURNIN_BTC_PASSWORD:-burnin}
+      - -fallbackfee=0.0002
+      - -listen=0
+    ports:
+      - "127.0.0.1:${BURNIN_BTC_PORT:-18443}:18443"
+    volumes:
+      - bitcoin-data:/home/bitcoin/.bitcoin
+
+  # ---------------------------------------------------------------------------
+  # Monero, regtest, offline: no peers are needed, so nothing leaks to a public
+  # network and blocks are produced only when the harness asks for them.
+  #
+  # `--fixed-difficulty=1` is what makes `generateblocks` instant; without it a
+  # regtest block is as expensive as the network difficulty says, and the
+  # burn-in would spend its whole budget mining.
+  #
+  # No `--rpc-login` here on purpose: on 0.18.5.4 an unauthenticated request and a
+  # correct Basic credential both came back 401 when the flag was set, so the
+  # harness would be betting on a flag it could not test. The daemon is reachable
+  # only from this network and from 127.0.0.1, and holds a chain with no value.
+  # The wallet daemons below keep their login: the image binds loopback without
+  # one, and a loopback bind inside a container is unreachable from the host.
+  # ---------------------------------------------------------------------------
+  monerod:
+    image: ${BURNIN_MONEROD_IMAGE:-ghcr.io/sethforprivacy/simple-monerod:latest}
+    command:
+      - --regtest
+      - --offline
+      - --fixed-difficulty=1
+      - --non-interactive
+      - --data-dir=/home/monero/.bitmonero
+      - --rpc-bind-ip=0.0.0.0
+      - --rpc-bind-port=18081
+      - --confirm-external-bind
+    ports:
+      - "127.0.0.1:${BURNIN_MONEROD_PORT:-18081}:18081"
+    volumes:
+      - monero-data:/home/monero/.bitmonero
+
+  # ---------------------------------------------------------------------------
+  # The merchant's wallet - the one the app calls `create_address` and
+  # `get_transfers` on. It holds the invoice subaddresses.
+  #
+  # Note what is absent: `--regtest`. `monerod` decides the network; wallet RPC
+  # has no such flag and learns it from the daemon it connects to.
+  # ---------------------------------------------------------------------------
+  monero-merchant:
+    image: ${BURNIN_XMR_WALLET_IMAGE:-ghcr.io/sethforprivacy/simple-monero-wallet-rpc:latest}
+    command:
+      - --daemon-host=monerod
+      - --daemon-port=18081
+      - --trusted-daemon
+      - --wallet-dir=/home/monero/wallet
+      - --rpc-bind-ip=0.0.0.0
+      - --rpc-bind-port=18083
+      - --confirm-external-bind
+      - --rpc-login=${BURNIN_MONERO_LOGIN:-burnin:burnin}
+    ports:
+      - "127.0.0.1:${BURNIN_XMR_MERCHANT_PORT:-18083}:18083"
+    volumes:
+      - monero-merchant:/home/monero/wallet
+    depends_on:
+      - monerod
+
+  # ---------------------------------------------------------------------------
+  # The customer's wallet. A second daemon rather than a second wallet file:
+  # one `monero-wallet-rpc` can only have one wallet open, and the app must keep
+  # the merchant's open while the test spends from this one.
+  # ---------------------------------------------------------------------------
+  monero-funder:
+    image: ${BURNIN_XMR_WALLET_IMAGE:-ghcr.io/sethforprivacy/simple-monero-wallet-rpc:latest}
+    command:
+      - --daemon-host=monerod
+      - --daemon-port=18081
+      - --trusted-daemon
+      - --wallet-dir=/home/monero/wallet
+      - --rpc-bind-ip=0.0.0.0
+      - --rpc-bind-port=18084
+      - --confirm-external-bind
+      - --rpc-login=${BURNIN_MONERO_LOGIN:-burnin:burnin}
+    ports:
+      - "127.0.0.1:${BURNIN_XMR_FUNDER_PORT:-18084}:18084"
+    volumes:
+      - monero-funder:/home/monero/wallet
+    depends_on:
+      - monerod
+
+volumes:
+  bitcoin-data:
+  monero-data:
+  monero-merchant:
+  monero-funder:

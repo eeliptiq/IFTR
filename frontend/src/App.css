@@ -1,0 +1,235 @@
+/* SharePlate Custom Styles */
+
+/* Hero Section */
+.hero-bg {
+    background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000' fill-opacity='0.02'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+}
+
+/* Role Cards */
+.role-card {
+    @apply relative overflow-hidden rounded-3xl p-8 transition-all duration-300 cursor-pointer;
+    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+}
+
+.role-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px -15px hsl(var(--primary) / 0.2);
+}
+
+.role-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid transparent;
+    border-radius: inherit;
+    transition: border-color 0.3s;
+}
+
+.role-card:hover::after {
+    border-color: hsl(var(--primary) / 0.3);
+}
+
+/* Map Placeholder */
+.map-container {
+    @apply relative rounded-2xl overflow-hidden bg-secondary;
+    min-height: 300px;
+}
+
+.map-container::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: 
+        linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px),
+        linear-gradient(hsl(var(--border)) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.5;
+}
+
+/* Order Card */
+.order-card {
+    @apply rounded-xl border border-border bg-card text-card-foreground shadow-sm p-6 hover:shadow-md transition-shadow;
+}
+
+/* Menu Item Card */
+.menu-item-card {
+    @apply flex gap-4 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors cursor-pointer;
+}
+
+.menu-item-card img {
+    @apply w-24 h-24 rounded-lg object-cover;
+}
+
+/* Driver Stats Card */
+.driver-stat {
+    @apply flex flex-col items-center justify-center p-6 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5;
+}
+
+.driver-stat-value {
+    @apply text-4xl font-bold font-mono text-primary;
+}
+
+.driver-stat-label {
+    @apply text-sm text-muted-foreground uppercase tracking-wider mt-2;
+}
+
+/* Impact Counter */
+.impact-counter {
+    @apply flex flex-col items-center p-8;
+}
+
+.impact-number {
+    @apply text-6xl md:text-7xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+}
+
+.impact-label {
+    @apply text-lg text-muted-foreground mt-2;
+}
+
+/* Navigation Tabs */
+.nav-tab {
+    @apply px-4 py-2 text-muted-foreground hover:text-foreground transition-colors relative;
+}
+
+.nav-tab.active {
+    @apply text-primary font-semibold;
+}
+
+.nav-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: hsl(var(--primary));
+    border-radius: 1px;
+}
+
+/* Support Question Card */
+.question-card {
+    @apply rounded-xl border border-border bg-card text-card-foreground shadow-sm p-6 space-y-4;
+}
+
+.question-category {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider;
+}
+
+.question-category[data-category="general"] {
+    @apply bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400;
+}
+
+.question-category[data-category="delivery"] {
+    @apply bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400;
+}
+
+.question-category[data-category="payment"] {
+    @apply bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400;
+}
+
+/* Answer Card */
+.answer-card {
+    @apply p-4 rounded-xl bg-secondary/50 border-l-4 border-primary/30;
+}
+
+.answer-card.accepted {
+    @apply border-l-4 border-green-500 bg-green-50 dark:bg-green-900/10;
+}
+
+/* Routing Visualization */
+.route-line {
+    stroke: hsl(var(--primary));
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 8 4;
+    animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+    to {
+        stroke-dashoffset: -12;
+    }
+}
+
+.route-point {
+    @apply w-4 h-4 rounded-full border-2 border-white shadow-lg;
+}
+
+.route-point.start {
+    @apply bg-blue-500;
+}
+
+.route-point.pickup {
+    @apply bg-primary;
+}
+
+.route-point.distribution {
+    @apply bg-accent;
+}
+
+.route-point.delivery {
+    @apply bg-green-500;
+}
+
+/* Loading States */
+.skeleton {
+    @apply animate-pulse bg-muted rounded;
+}
+
+/* Form Styles */
+.form-group {
+    @apply space-y-2;
+}
+
+.form-label {
+    @apply text-sm font-medium text-foreground;
+}
+
+.form-hint {
+    @apply text-xs text-muted-foreground;
+}
+
+/* Modal/Dialog Backdrop */
+.modal-backdrop {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-50;
+}
+
+/* Toast Customization */
+[data-sonner-toast] {
+    @apply font-sans;
+}
+
+/* Responsive Sidebar */
+@media (max-width: 768px) {
+    .sidebar-mobile {
+        @apply fixed inset-y-0 left-0 z-50 w-64 transform -translate-x-full transition-transform;
+    }
+    
+    .sidebar-mobile.open {
+        @apply translate-x-0;
+    }
+}
+
+/* Theme Transition */
+* {
+    transition-property: background-color, border-color;
+    transition-duration: 200ms;
+    transition-timing-function: ease-out;
+}
+
+/* Print Styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+}

@@ -34,6 +34,9 @@ class SurplusFoodCreate(BaseModel):
 # Surplus Delivery Model - Driver volunteers to deliver surplus to organizations
 class SurplusDeliveryStatus(str, Enum):
     PENDING = "pending"  # Waiting for driver pickup
+    # A volunteer has said yes and is on their way. Distinct from picked_up,
+    # which is a fact about the food rather than about the driver's intent.
+    ASSIGNED = "assigned"
     PICKED_UP = "picked_up"  # Driver has the food
     IN_TRANSIT = "in_transit"  # On the way to organization
     DELIVERED = "delivered"  # Completed

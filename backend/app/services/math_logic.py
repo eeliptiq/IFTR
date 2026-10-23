@@ -16,10 +16,9 @@ application code.
 """
 
 from typing import Tuple, Dict, Any
-# The Pydantic models are used for type hinting to ensure data consistency.
-from ..models.order import Order
-from ..models.driver import Driver
-from fastkml import kml
+from datetime import datetime, timezone, timedelta
+from app.models.order import Order
+from app.models.driver import Driver
 
 def get_minimum_driver_fee(order_data: Dict[str, Any]) -> float:
     """

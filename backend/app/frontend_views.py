@@ -6,10 +6,10 @@ Frontend views that respect location privacy
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 
-from models.delivery import Delivery, DeliveryStatus
-from models.order import OrderResponse
-from models.driver import Driver
-from models.general import IFTRBaseModel
+from app.models.delivery import Delivery, DeliveryStatus
+from app.models.order import OrderResponse
+from app.models.driver import Driver
+from app.models.general import IFTRBaseModel
 
 
 class PrivacyRespectingDeliveryView(IFTRBaseModel):

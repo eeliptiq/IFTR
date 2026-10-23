@@ -24,9 +24,8 @@ from datetime import datetime, timezone
 from typing import Optional
 from pydantic import Field, ConfigDict, EmailStr, SecretStr, BaseModel
 import logging
-from core.ids import generate_id
+from app.core.ids import generate_id
 
-logger = logging.getLogger(__name__)
 logger = logging.getLogger(__name__)
 
 class UserRole(str, Enum):
@@ -63,6 +62,36 @@ class VehicleType(str, Enum):
     E_BIKE = "e-bike"
     BIKE = "bike"
     SKATES = "rollerskates/skateboard"
+    WALK = "walk"  # on foot; the driver screen offers it, so the enum must too
+                    # (a form may offer a subset of these, never an outside value)
+
+
+# Rough door-to-door speeds through a city, in km/h. Claims, not measurements:
+# they exist so a job offer can quote an ETA at all, and they sit beside the enum
+# because they are a fact about the vehicle rather than about any one endpoint.
+VEHICLE_SPEED_KMH = {
+    VehicleType.WALK.value: 4.5,
+    VehicleType.SKATES.value: 8.0,
+    VehicleType.BIKE.value: 14.0,
+    VehicleType.E_BIKE.value: 18.0,
+    VehicleType.MOTORCYCLE.value: 28.0,
+    VehicleType.CAR.value: 24.0,
+    VehicleType.TRUCK.value: 20.0,
+}
+
+# Loading the bag, parking, buzzing a door: every trip pays this much beyond the
+# time it takes to cover the distance.
+ETA_OVERHEAD_MINUTES = 4.0
+
+
+def vehicle_eta_minutes(vehicle_type: str, km: float) -> int:
+    """Minutes to complete a trip of `km` on this vehicle, overhead included.
+
+    An unknown vehicle falls back to the slowest sensible speed rather than
+    raising: a hand-edited row should not 500 a driver's board.
+    """
+    speed = VEHICLE_SPEED_KMH.get(vehicle_type, VEHICLE_SPEED_KMH[VehicleType.TRUCK.value])
+    return int(round(ETA_OVERHEAD_MINUTES + (km / speed) * 60.0))
 
 class DeliveryInstructionType(str, Enum):
     """Types of delivery instructions"""
@@ -106,9 +135,3 @@ class DecryptedLocation(IFTRBaseModel):
     address: str = ""
     city: str = ""
     zip_code: str = ""
-
-class AddressTier(str, Enum):
-    CUSTOMER_HOME = "customer_home"  # Full encryption
-    CUSTOMER_WORK = "customer_work"  # Full encryption
-    ORGANIZATION = "organization"  # Partial encryption (coordinates only)
-    PUBLIC_PLACE = "public_place"  # No encryption

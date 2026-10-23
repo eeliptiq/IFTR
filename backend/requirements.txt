@@ -1,0 +1,46 @@
+# IFTR backend dependencies
+#
+# Verified against Python 3.14 (the interpreter used by the repo-root .venv).
+# The previous pins (fastapi==0.111.0, sqlalchemy==2.0.30, pydantic==2.7) were
+# written for Python 3.12 and fail to build/import on 3.14.
+#
+# Install with:
+#     python -m pip install -r requirements.txt
+# Run with:
+#     ./run.sh        # or: python -m uvicorn app.main:app --reload
+
+# --- Core web framework ---
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.20   # required by FastAPI for file uploads
+
+# --- Data & validation ---
+pydantic==2.13.5
+pydantic_core==2.46.5
+email-validator==2.3.0
+sqlalchemy[asyncio]==2.1.4   # [asyncio] pulls in greenlet
+greenlet==3.5.6
+aiosqlite==0.22.1
+
+# --- Security ---
+python-jose[cryptography]==3.5.0
+cryptography==50.0.1
+
+# --- Payments ---
+# Hosted Checkout and webhook signature verification. The app runs without a
+# key (orders are placed unpaid); the SDK is still imported at startup.
+stripe==16.0.0
+
+# --- Utilities ---
+python-dotenv==1.2.4
+
+# --- Dev tools ---
+pytest
+httpx==0.28.1   # required by fastapi.testclient for the test suite
+# Browser end-to-end test only (tests/test_e2e_checkout.py, opt-in with
+# RUN_UI_E2E=1). After installing, fetch the browser once:
+#     python -m playwright install chromium
+playwright
+black
+isort
+mypy

@@ -1,50 +1,16 @@
 from typing import List, Dict, Any
 
-from core.ids import generate_id
+from app.core.ids import generate_id
 from datetime import datetime, timezone
 from typing import Optional
 from pydantic import Field, ConfigDict, model_validator, validator
-from enum import Enum
-from models.encrypted_models import EncryptedLocation
-from models.general import IFTRBaseModel
-from models.user import UserRole
-from models.menu_item import OptionType, MenuOption, MenuItem, MenuItemModifier
+from app.models.encrypted_models import EncryptedLocation
+from app.models.general import IFTRBaseModel, OrderStatus, FoodType, VehicleType
+from app.models.user import UserRole
+from app.models.menu_item import OptionType, MenuOption, MenuItem, MenuItemModifier
 import logging
 
 logger = logging.getLogger(__name__)
-
-class OrderStatus(str, Enum):
-    PENDING = "pending"        # Charge customer but allow refund if restaurant declines
-    CONFIRMED = "confirmed"    # Restaurant has accepted the order, no more refund unless issue
-    PREPARING = "preparing"
-    READY = "ready"            # Order is waiting for driver
-    ASSIGNED = "assigned"      # Driver accepted, on the way to restaurant
-    PICKED_UP = "picked_up"    # Driver has the food
-    IN_TRANSIT = "in_transit"
-    DELIVERED = "delivered"
-    CANCELLED = "cancelled"    # Default cancellation policy is not allowing customer to cancel after confirmed
-                               # If order has issue, customer can receive credits or refund after contacting support
-                               # Feel free to change this, but remember cancellation can be a major platform issue
-
-class PaymentStatus(str, Enum):
-    PENDING = "pending"        # Associated with PENDING order
-    INITIATED = "initiated"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    REFUNDED = "refunded"
-
-class FoodType(str, Enum):
-    REGULAR = "regular"
-    SURPLUS = "surplus"
-    DONATION = "donation"
-
-class VehicleType(str, Enum):
-    MOTORCYCLE = "motorcycle"
-    CAR = "car"
-    TRUCK = "truck"
-    E_BIKE = "e-bike"
-    BIKE = "bike"
-    SKATES = "rollerskates/skateboard"
 
 class MenuCategory(IFTRBaseModel):
     """Category for organizing menu items"""

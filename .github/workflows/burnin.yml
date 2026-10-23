@@ -1,0 +1,69 @@
+name: Crypto burn-in
+
+# The burn-in starts four containers, mines a regtest chain and pays two real
+# invoices. That is too slow for every push, so it runs when somebody asks and
+# once a week - early enough to notice an upstream image tag that moved, or a
+# node release that changed an RPC, before a release depends on either.
+
+on:
+  # A branch push that touches the harness runs it immediately: that is the
+  # moment the change is unproven. `workflow_dispatch` only appears in the UI
+  # once this file is on the default branch, which is why the push trigger is
+  # the one that works on a feature branch.
+  push:
+    paths:
+      - "backend/burnin/**"
+      - "backend/tests/burnin_stack.py"
+      - "backend/tests/test_crypto_burnin.py"
+      - "backend/tests/test_burnin_harness.py"
+      - ".github/workflows/burnin.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * 1"
+
+jobs:
+  burnin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: python -m pip install -r requirements.txt
+
+      # Pulling is the slowest part and the most likely to fail for a reason
+      # that has nothing to do with this app; doing it here keeps that failure
+      # attributed to the pull instead of to the payment.
+      - name: Pull the node images
+        working-directory: backend
+        run: docker compose -f burnin/compose.yaml pull
+
+      # Both modules: the harness's own tests need no Docker and are cheap, and
+      # the burn-in needs the containers the previous step pulled.
+      - name: Pay a real invoice from a real regtest chain
+        working-directory: backend
+        env:
+          RUN_CRYPTO_BURNIN: "1"
+        run: >-
+          python -m pytest
+          tests/test_crypto_burnin.py
+          tests/test_burnin_harness.py
+          -q
+
+      # Compose, container and API logs land in backend/logs/burnin, which git
+      # ignores. On a failure they are the only evidence of what the nodes said.
+      - name: Keep the logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: burnin-logs
+          path: backend/logs/burnin/
+          if-no-files-found: warn

@@ -1,5 +1,14 @@
 """
 Phase 2: Privacy-preserving audit logging for sensitive data access.
+
+Two trails live here, for two different questions:
+
+  * `PrivacyAuditLogger` answers "was sensitive data looked at?" with tiered log
+    lines, so a suspicious pattern can be spotted without storing who looked.
+  * `record_event` / `change_role` answer "who changed this, and from what?"
+    with rows in `audit_events`. A role, an account's activity or a verification
+    is durable state, so its history has to outlive log rotation and be
+    queryable by subject.
 """
 
 import os
@@ -8,6 +17,11 @@ import logging
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.audit_orm import AuditEventRecord
+from app.models.user_orm import UserRecord
 
 logger = logging.getLogger(__name__)
 
@@ -100,3 +114,112 @@ class PrivacyAuditLogger:
 
 # Global instance
 audit_logger = PrivacyAuditLogger()
+
+
+# --------------------------------------------------------------------------
+# Persisted trail of privileged changes
+# --------------------------------------------------------------------------
+
+ROLE_CHANGED = "user.role_changed"
+USER_SUSPENDED = "user.suspended"
+USER_REACTIVATED = "user.reactivated"
+# A driver's accepted delivery returned to the pool when the driver was
+# suspended. Subject is the order or the volunteer run, not the account: the
+# question this answers is "what happened to this delivery".
+DELIVERY_REASSIGNED = "delivery.reassigned"
+ORGANIZATION_VERIFIED = "organization.verified"
+ORGANIZATION_UNVERIFIED = "organization.unverified"
+
+# "the caller themself" - the common case for onboarding. A sentinel rather than
+# None, because None is a real actor: the server's shell, which has no account.
+_SELF = object()
+
+
+def record_event(
+    db: AsyncSession,
+    *,
+    action: str,
+    subject_type: str,
+    subject_id: str,
+    from_value: Optional[str] = None,
+    to_value: Optional[str] = None,
+    actor: Optional[UserRecord] = None,
+    actor_role: Optional[str] = None,
+    actor_kind: str = "user",
+    detail: str = "",
+) -> AuditEventRecord:
+    """Add one audit row to the caller's transaction.
+
+    Written through the request's session on purpose: the change and the record
+    of it commit together. A failed request can then leave neither a role change
+    with no trail, nor a trail describing a change that never happened.
+    """
+    if actor_role is None:
+        actor_role = getattr(actor, "role", "") or ""
+
+    event = AuditEventRecord(
+        action=action,
+        subject_type=subject_type,
+        subject_id=subject_id,
+        actor_id=actor.user_id if actor is not None else None,
+        actor_role=actor_role,
+        actor_kind="user" if actor is not None else actor_kind,
+        from_value=from_value,
+        to_value=to_value,
+        detail=detail,
+    )
+    db.add(event)
+    return event
+
+
+def change_role(
+    db: AsyncSession,
+    user: UserRecord,
+    new_role: str,
+    *,
+    detail: str = "",
+    actor=_SELF,
+    actor_role: Optional[str] = None,
+    actor_kind: str = "user",
+) -> bool:
+    """Move an account to `new_role`, recording the transition once.
+
+    Returns whether anything changed. A promotion to the role the account
+    already holds is not an event - saying so in the trail would turn a retried
+    onboarding tap into history that never happened.
+
+    `actor` defaults to the account itself (onboarding). Pass `actor=None,
+    actor_kind="cli"` for a command run from the server's shell.
+    """
+    previous = user.role or ""
+    if previous == new_role:
+        return False
+
+    if actor is _SELF:
+        actor = user
+
+    if actor_role is None:
+        # An account acting on itself held `previous` at that moment. An
+        # administrator acting on somebody else holds their own role, which is
+        # not the subject's. A command run from the shell holds no role.
+        if actor is None:
+            actor_role = ""
+        elif actor is user:
+            actor_role = previous
+        else:
+            actor_role = actor.role or ""
+
+    record_event(
+        db,
+        action=ROLE_CHANGED,
+        subject_type="user",
+        subject_id=user.user_id,
+        from_value=previous,
+        to_value=new_role,
+        actor=actor,
+        actor_role=actor_role,
+        actor_kind=actor_kind,
+        detail=detail,
+    )
+    user.role = new_role
+    return True

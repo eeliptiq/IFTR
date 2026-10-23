@@ -1,10 +1,10 @@
-from core.ids import generate_id
+from app.core.ids import generate_id
 from datetime import datetime, timezone
 from typing import Optional
 from pydantic import Field, ConfigDict
 import logging
-from models.encrypted_models import EncryptedLocation
-from models.general import IFTRBaseModel
+from app.models.encrypted_models import EncryptedLocation
+from app.models.general import IFTRBaseModel
 
 logger = logging.getLogger(__name__)
 

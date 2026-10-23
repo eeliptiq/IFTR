@@ -1,0 +1,65 @@
+name: Preview cleanup
+
+# Every push to a pull request publishes another preview deployment, and nothing
+# in Cloudflare removes them when the pull request is closed or merged - they
+# keep living on their pr-<number> alias. This workflow deletes them.
+#
+# `pull_request_target`, not `pull_request`: a pull request from a fork does not
+# receive repository secrets, so the deploy token would be empty and the preview
+# would leak. Nothing from the pull request is checked out or run here - only its
+# number is read - so running in the base repository's context is safe.
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-cleanup-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  delete:
+    name: Delete the preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Delete every deployment published for this pull request
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # The same project the deploy workflow publishes to.
+          PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || github.event.repository.name }}
+          # The branch the deploy workflow publishes previews under. Listing by
+          # environment keeps production deployments out of reach entirely, and
+          # the exact branch match means a merge to main cannot be swept up.
+          BRANCH: pr-${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          npx --yes wrangler@4 pages deployment list \
+            --project-name "$PROJECT" --environment preview --json > deployments.json
+
+          # The Branch field is the one the deploy workflow publishes under, so
+          # this is an exact match and not a pattern: nothing on main can be
+          # selected here even if the listing is broader than asked for.
+          ids=$(jq -r --arg branch "$BRANCH" '.[] | select(.Branch == $branch) | .Id' deployments.json \
+            | tr -d '\r')
+
+          if [ -z "$ids" ]; then
+            echo "No preview deployments for $BRANCH - nothing to delete."
+            exit 0
+          fi
+
+          for id in $ids; do
+            echo "Deleting deployment $id ($BRANCH)"
+            # --force because a preview carries the pr-<number> alias, which is
+            # exactly the thing being retired.
+            npx --yes wrangler@4 pages deployment delete "$id" \
+              --project-name "$PROJECT" --force
+          done

@@ -4,11 +4,10 @@ from pydantic import Field, ConfigDict, model_validator
 import logging
 
 # Import from core (encryption)
-from core.encryption import encrypt_data, decrypt_data
-from core.ids import generate_id  # if you have this
+from app.core.encryption import encrypt_data, decrypt_data
+from app.core.ids import generate_id
 
-# Import shared types from general
-from models.general import VehicleType, IFTRBaseModel
+from app.models.general import VehicleType, IFTRBaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -192,11 +191,6 @@ class DriverCreate(IFTRBaseModel):
         driver.license_number = self.license_number
         driver.license_plate = self.license_plate
         return driver
-
-class DriverCreate(IFTRBaseModel):
-    vehicle_type: VehicleType = VehicleType.CAR
-    license_number: str = ""
-    license_plate: str = ""
 
 class DriverUpdate(IFTRBaseModel):
     """Input model for updating driver info"""

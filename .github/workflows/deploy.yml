@@ -1,0 +1,168 @@
+name: Deploy
+
+# Publishes the bundle the build job produced - downloaded from that run, not
+# rebuilt here, so what goes live is exactly what was tested. Triggered by the
+# Tests workflow rather than by a push, which is what makes "after the build
+# job passes" true by construction: a red build never reaches this file.
+#
+# A push to main publishes to the project's production branch. Everything else
+# that passed Tests publishes a *preview* instead: one per pull request
+# (pr-<number>), or one per branch when a branch is pushed without a PR. A
+# preview lands on its own <alias>.<project>.pages.dev URL and never touches the
+# production one, so a change can be looked at before it is merged.
+#
+# Previews are built from the pull request's code (the Tests run checked it out)
+# and published with this repository's credentials, so a fork's PR does get its
+# output hosted - on a URL of its own, not on the site's.
+on:
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
+
+concurrency:
+  # One deploy at a time per ref. A newer push to the same pull request makes the
+  # older preview pointless; a production publish is never cut off halfway.
+  group: deploy-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: ${{ github.event.workflow_run.event == 'pull_request' }}
+
+permissions:
+  contents: read
+  # Required to fetch the artifact from the Tests run that triggered this.
+  actions: read
+  # Required to put the preview link where a reviewer will see it.
+  pull-requests: write
+
+jobs:
+  deploy:
+    name: Cloudflare Pages
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      # Only the default branch publishes the real site; every other run is a
+      # preview, which is also where its URL is reported on the pull request.
+      name: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && 'production' || 'preview' }}
+      url: ${{ steps.publish.outputs.deployment-url }}
+    steps:
+      - name: Work out where this publishes
+        id: target
+        env:
+          EVENT: ${{ github.event.workflow_run.event }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: |
+          if [ "$EVENT" = "push" ] && [ "$HEAD_BRANCH" = "main" ]; then
+            echo "branch=main" >> "$GITHUB_OUTPUT"
+            echo "label=production" >> "$GITHUB_OUTPUT"
+          elif [ -n "$PR_NUMBER" ]; then
+            # Stable per pull request, so the URL survives new commits.
+            echo "branch=pr-$PR_NUMBER" >> "$GITHUB_OUTPUT"
+            echo "label=preview for #$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          else
+            # A branch pushed without a PR still gets somewhere to look.
+            echo "branch=$(echo "$HEAD_BRANCH" | tr '/' '-')" >> "$GITHUB_OUTPUT"
+            echo "label=preview for $HEAD_BRANCH" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download the bundle Tests built
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: build
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Cloudflare Pages serves index.html for unmatched paths only when there
+      # is no 404.html, which is easy to lose. Saying it out loud keeps deep
+      # links such as /orders/order_… working on a refresh.
+      - name: Route client-side URLs to the app
+        run: |
+          test -f build/index.html || { echo "::error::the artifact has no index.html"; exit 1; }
+          printf '/*    /index.html   200\n' > build/_redirects
+
+      # The bundle bakes its API origin in at build time, so an unset variable
+      # publishes a site whose every request goes to localhost. That is allowed
+      # on purpose; it is not allowed to happen quietly.
+      #
+      # The rule matches the one the build job used: main gets the production
+      # API, a preview gets the preview API. Nothing here can change what is in
+      # the artifact - this only reports it, so a wrong variable is visible.
+      - name: Say which API this bundle was built against
+        env:
+          ON_MAIN: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+          PRODUCTION_API: ${{ vars.REACT_APP_BACKEND_URL }}
+          PREVIEW_API: ${{ vars.PREVIEW_BACKEND_URL }}
+        run: |
+          if [ "$ON_MAIN" = "true" ]; then
+            origin="$PRODUCTION_API"; role=production; variable=REACT_APP_BACKEND_URL
+          else
+            origin="$PREVIEW_API"; role=preview; variable=PREVIEW_BACKEND_URL
+          fi
+
+          if [ -z "$origin" ]; then
+            echo "::warning::No $role API origin is configured (repository variable $variable), so this bundle talks to http://localhost:8000 and cannot reach an API. Set it and rerun Tests."
+          else
+            echo "Bundle built against $origin ($role)"
+          fi
+
+      - name: Publish
+        id: publish
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # The Pages project must already exist (Cloudflare dashboard, or
+          # `wrangler pages project create`). Its name comes from the repository
+          # variable, falling back to the repository's own name. Any --branch
+          # other than the project's production branch is a preview deployment.
+          command: >-
+            pages deploy build
+            --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT || github.event.repository.name }}
+            --branch=${{ steps.target.outputs.branch }}
+
+      # A preview nobody can find is not reviewed, and the deployment this job
+      # records is attached to the default branch, not to the pull request. So
+      # the link goes on the PR itself: one comment, rewritten in place on each
+      # push rather than one per commit.
+      #
+      # Not `gh pr comment --edit-last`: that edits the *last* comment of the
+      # token's user, which is only ours by luck. The marker decides instead.
+      - name: Put the preview link on the pull request
+        if: github.event.workflow_run.event == 'pull_request' && steps.publish.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PREVIEW_URL: ${{ steps.publish.outputs['pages-deployment-alias-url'] || steps.publish.outputs.deployment-url }}
+        run: |
+          marker='<!-- pages-preview -->'
+          body="$marker
+          Preview of ${HEAD_SHA:0:7}: $PREVIEW_URL"
+
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" \
+            --jq ".[] | select(.body | contains(\"$marker\")) | .id" | head -1 || true)
+
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -f body="$body" > /dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" -f body="$body" > /dev/null
+          fi
+
+      # The run page is where someone looks when a deploy is mentioned in review,
+      # so the URL belongs there rather than buried in the wrangler output.
+      - name: Report the URL
+        if: always() && steps.publish.outcome == 'success'
+        env:
+          DEPLOYMENT_URL: ${{ steps.publish.outputs.deployment-url }}
+          ALIAS_URL: ${{ steps.publish.outputs['pages-deployment-alias-url'] }}
+          LABEL: ${{ steps.target.outputs.label }}
+        run: |
+          {
+            echo "### Published $LABEL"
+            echo
+            echo "- Deployment: $DEPLOYMENT_URL"
+            if [ -n "$ALIAS_URL" ]; then
+              echo "- Alias (stable for this branch): $ALIAS_URL"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Published $LABEL at $DEPLOYMENT_URL"

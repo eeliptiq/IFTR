@@ -14,16 +14,17 @@ from pydantic import Field, ConfigDict, field_validator
 from decimal import Decimal
 
 # Import from same package
-from models.general import IFTRBaseModel, OrderStatus, DeliveryInstructionType
-from models.encrypted_models import EncryptedAddress
-from core.ids import generate_id
+from app.models.general import IFTRBaseModel, OrderStatus, DeliveryInstructionType
+from app.models.encrypted_models import EncryptedAddress
+from app.core.ids import generate_id
 
 import logging
 
 class DeliveryStatus(str, Enum):
     """Status of a delivery"""
     PENDING = "pending"           # Created, not yet assigned
-    OFFERED = "offered"           # Offered to driver(s)
+    CONFIRMED = "confirmed"       # Restaurant accepts, preparing food
+    OFFERED = "offered"           # Food ready, offered to driver(s)
     ASSIGNED = "assigned"         # Driver accepted
     PICKED_UP = "picked_up"       # Driver has food
     IN_TRANSIT = "in_transit"     # On the way to dropoff

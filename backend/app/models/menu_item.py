@@ -81,6 +81,14 @@ class MenuItem(IFTRBaseModel):
 
     # Item properties
     is_available: bool = True
+    # A drink travels differently, which is why OrderItem carries the same flag:
+    # this is where an item gets to be one. See app/schemas/restaurant.py for the
+    # wire copy of this field.
+    is_drink: bool = False
+    # Packaging, not a second kind of drink: a can or bottle travels like any
+    # other item, while an open cup needs a hand or a holder. Meaningful only
+    # when is_drink is set; the order carries the same flag per line.
+    is_sealed: bool = False
     is_surplus: bool = False
     surplus_quantity: int = 0
     surplus_expiry: Optional[datetime] = None

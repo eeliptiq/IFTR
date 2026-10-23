@@ -1,1 +1,29 @@
 math_logic_private.py
+
+# Python
+__pycache__/
+*.pyc
+
+# Local SQLite database (created at runtime)
+backend/iftr.db
+
+# User-uploaded images (created at runtime)
+backend/uploads/
+
+# Uploads cleanup run history (created at runtime)
+backend/logs/
+
+# Frontend
+frontend/node_modules/
+frontend/build/
+frontend/.env
+
+# Backend secrets for local payment testing (read by dev_payments.sh)
+.env
+backend/.env
+backend/.env.local
+
+# Virtualenvs: a checked-in one is thousands of files, pins a different Python,
+# and has no business in a repository that installs from requirements.txt.
+backend/.venv/
+.venv/

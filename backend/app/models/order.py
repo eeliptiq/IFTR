@@ -3,26 +3,19 @@ MAX_TIP_PERCENTAGE = 200
 
 from typing import List, Dict, Optional, TYPE_CHECKING, Any
 from decimal import Decimal
-from pydantic import field_validator
-from core.encryption import encrypt_instructions, decrypt_instructions
-from core.ids import generate_id
-from datetime import timezone
+from datetime import datetime, timezone
 from pydantic import Field, field_validator, ConfigDict, validator
+from app.core.encryption import encrypt_instructions, decrypt_instructions
+from app.core.ids import generate_id
 
-# models/delivery.py
-from pydantic import Field
-from datetime import datetime
-
-# Import from general
-from models.payment import PaymentStatus
-from models.encrypted_models import EncryptedLocation
-from models.general import DeliveryInstructionType, OrderStatus, IFTRBaseModel
+from app.models.payment import PaymentStatus
+from app.models.encrypted_models import EncryptedLocation
+from app.models.general import DeliveryInstructionType, OrderStatus, IFTRBaseModel
 
 if TYPE_CHECKING:
-    from models.delivery import Delivery
+    from app.models.delivery import Delivery
 
 import logging
-
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +139,7 @@ class OrderItem(IFTRBaseModel):
         # Add special instructions
         if self.special_instructions:
             parts.append(f"  • Note: {self.special_instructions}")
-
+    
         return "\n".join(parts)
 
 class Order(IFTRBaseModel):
