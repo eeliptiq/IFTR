@@ -47,6 +47,13 @@ services:
   # regtest block is as expensive as the network difficulty says, and the
   # burn-in would spend its whole budget mining.
   #
+  # No `--non-interactive` here: the image's entrypoint supplies it, and monerod
+  # refuses to start at all when an option arrives twice ("option
+  # '--non-interactive' cannot be specified more than once"). The container then
+  # dies in a second and every wait below times out with "connection refused",
+  # which says nothing about the cause - so `command` lists only what the
+  # entrypoint does not already pass.
+  #
   # No `--rpc-login` here on purpose: on 0.18.5.4 an unauthenticated request and a
   # correct Basic credential both came back 401 when the flag was set, so the
   # harness would be betting on a flag it could not test. The daemon is reachable
@@ -55,12 +62,11 @@ services:
   # one, and a loopback bind inside a container is unreachable from the host.
   # ---------------------------------------------------------------------------
   monerod:
-    image: ${BURNIN_MONEROD_IMAGE:-ghcr.io/sethforprivacy/simple-monerod:latest}
+    image: ${BURNIN_MONEROD_IMAGE:-ghcr.io/sethforprivacy/simple-monerod:v0.18.5.4}
     command:
       - --regtest
       - --offline
       - --fixed-difficulty=1
-      - --non-interactive
       - --data-dir=/home/monero/.bitmonero
       - --rpc-bind-ip=0.0.0.0
       - --rpc-bind-port=18081
@@ -76,17 +82,19 @@ services:
   #
   # Note what is absent: `--regtest`. `monerod` decides the network; wallet RPC
   # has no such flag and learns it from the daemon it connects to.
+  #
+  # Also absent: `--rpc-bind-ip` and `--confirm-external-bind`. The image's
+  # entrypoint adds both, to 0.0.0.0, as soon as it sees `--rpc-login` - and a
+  # second copy of either makes the wallet daemon exit before it binds.
   # ---------------------------------------------------------------------------
   monero-merchant:
-    image: ${BURNIN_XMR_WALLET_IMAGE:-ghcr.io/sethforprivacy/simple-monero-wallet-rpc:latest}
+    image: ${BURNIN_XMR_WALLET_IMAGE:-ghcr.io/sethforprivacy/simple-monero-wallet-rpc:v0.18.5.4}
     command:
       - --daemon-host=monerod
       - --daemon-port=18081
       - --trusted-daemon
       - --wallet-dir=/home/monero/wallet
-      - --rpc-bind-ip=0.0.0.0
       - --rpc-bind-port=18083
-      - --confirm-external-bind
       - --rpc-login=${BURNIN_MONERO_LOGIN:-burnin:burnin}
     ports:
       - "127.0.0.1:${BURNIN_XMR_MERCHANT_PORT:-18083}:18083"
@@ -101,15 +109,13 @@ services:
   # the merchant's open while the test spends from this one.
   # ---------------------------------------------------------------------------
   monero-funder:
-    image: ${BURNIN_XMR_WALLET_IMAGE:-ghcr.io/sethforprivacy/simple-monero-wallet-rpc:latest}
+    image: ${BURNIN_XMR_WALLET_IMAGE:-ghcr.io/sethforprivacy/simple-monero-wallet-rpc:v0.18.5.4}
     command:
       - --daemon-host=monerod
       - --daemon-port=18081
       - --trusted-daemon
       - --wallet-dir=/home/monero/wallet
-      - --rpc-bind-ip=0.0.0.0
       - --rpc-bind-port=18084
-      - --confirm-external-bind
       - --rpc-login=${BURNIN_MONERO_LOGIN:-burnin:burnin}
     ports:
       - "127.0.0.1:${BURNIN_XMR_FUNDER_PORT:-18084}:18084"

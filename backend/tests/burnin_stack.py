@@ -533,16 +533,8 @@ class BurnIn:
 
     # -- containers ---------------------------------------------------------
 
-    def _compose(self, args: List[str], *, timeout: float = 900.0) -> None:
-        command = [
-            "docker",
-            "compose",
-            "-p",
-            self.project,
-            "-f",
-            str(COMPOSE_FILE),
-            *args,
-        ]
+    def _compose_env(self) -> Dict[str, str]:
+        """The compose file's variables, with this run's ports and logins."""
         env = dict(os.environ)
         env.update(
             {
@@ -555,6 +547,19 @@ class BurnIn:
                 "BURNIN_MONERO_LOGIN": f"{MONERO_USER}:{MONERO_PASSWORD}",
             }
         )
+        return env
+
+    def _compose(self, args: List[str], *, timeout: float = 900.0) -> None:
+        command = [
+            "docker",
+            "compose",
+            "-p",
+            self.project,
+            "-f",
+            str(COMPOSE_FILE),
+            *args,
+        ]
+        env = self._compose_env()
         with self.compose_log.open("a", encoding="utf-8") as log:
             log.write(f"\n$ {' '.join(command)}\n")
             log.flush()
@@ -571,6 +576,42 @@ class BurnIn:
                 f"docker compose {' '.join(args)} failed with {completed.returncode}\n"
                 f"--- {self.compose_log} ---\n{tail(self.compose_log, lines=60)}"
             )
+
+    def container_report(self) -> str:
+        """What the containers say, for a wait that timed out.
+
+        A container whose arguments are wrong exits in about a second, and every
+        wait after that reports only "connection refused" - a message that
+        points at the network rather than at the parse error that caused it. The
+        containers themselves answer the question the timeout cannot.
+        """
+        report: List[str] = []
+        for args in (["ps", "-a"], ["logs", "--no-color", "--tail=15"]):
+            command = [
+                "docker",
+                "compose",
+                "-p",
+                self.project,
+                "-f",
+                str(COMPOSE_FILE),
+                *args,
+            ]
+            try:
+                completed = subprocess.run(
+                    command,
+                    cwd=str(BACKEND),
+                    env=self._compose_env(),
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                )
+            except (OSError, subprocess.SubprocessError) as exc:
+                report.append(f"<docker compose {args[0]} failed: {exc}>")
+                continue
+            body = (completed.stdout or completed.stderr).strip()
+            report.append(body or f"<docker compose {args[0]} said nothing>")
+
+        return "--- the containers ---\n" + "\n".join(report)
 
     def start_containers(self) -> None:
         """Pull, start, and wait for both nodes and both wallet daemons."""
@@ -590,17 +631,22 @@ class BurnIn:
         )
         funder = Rpc(f"http://127.0.0.1:{self.ports['xmr_funder']}/json_rpc", **auth)
 
-        wait_until(
-            lambda: self.xmr_daemon.call("get_info").get("status") == "OK",
-            timeout=240,
-            describe="monerod regtest never answered",
-        )
-        for name, wallet in (("merchant", merchant), ("funder", funder)):
+        try:
             wait_until(
-                lambda wallet=wallet: "version" in wallet.call("get_version"),
-                timeout=120,
-                describe=f"the {name} wallet-RPC never answered",
+                lambda: self.xmr_daemon.call("get_info").get("status") == "OK",
+                timeout=240,
+                describe="monerod regtest never answered",
             )
+            for name, wallet in (("merchant", merchant), ("funder", funder)):
+                wait_until(
+                    lambda wallet=wallet: "version" in wallet.call("get_version"),
+                    timeout=120,
+                    describe=f"the {name} wallet-RPC never answered",
+                )
+        except AssertionError as exc:
+            # Only when a wait has already failed: the report is what turns
+            # "never answered" into the one line the container printed.
+            raise AssertionError(f"{exc}\n{self.container_report()}") from None
 
         self.btc_wallets = provision_bitcoin(self.bitcoin)
         self.monero = provision_monero(self.xmr_daemon, merchant, funder)

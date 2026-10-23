@@ -82,6 +82,13 @@ def test_the_compose_file_is_the_stack_the_harness_expects():
     # on the test network; the wallet daemons keep their own login.
     assert "--rpc-login" not in daemon
 
+    # Flags the image's entrypoint already supplies. Twice is fatal, not
+    # redundant: monerod parses its options and exits with "option
+    # '--non-interactive' cannot be specified more than once" before it binds a
+    # port, so every wait after it times out on a refused connection and says
+    # nothing about the cause. The first CI run of this harness failed that way.
+    assert "--non-interactive" not in daemon
+
     for name in ("monero-merchant", "monero-funder"):
         command = " ".join(services[name]["command"])
         assert "--daemon-host=monerod" in command
@@ -89,6 +96,20 @@ def test_the_compose_file_is_the_stack_the_harness_expects():
         # monerod owns the network; wallet RPC has no --regtest flag and learns
         # the network from the daemon it connects to.
         assert "--regtest" not in command
+        # Same trap: the wallet entrypoint adds both as soon as it sees
+        # --rpc-login, and a duplicate makes the daemon exit before it binds.
+        assert "--rpc-bind-ip" not in command, name
+        assert "--confirm-external-bind" not in command, name
+        # The login is what makes the entrypoint bind 0.0.0.0 and publish it.
+        assert "--rpc-login" in command, name
+
+    # A floating tag turns a burn-in red for a reason that has nothing to do
+    # with this app, which is the opposite of what a burn-in is for. The images
+    # are versioned; the defaults use the version.
+    for name in ("monerod", "monero-merchant", "monero-funder"):
+        image = str(services[name]["image"])
+        assert not image.endswith(":latest"), (name, image)
+        assert "v0.18.5.4" in image, (name, image)
 
     # One wallet open per daemon is why there are two: they must not share a
     # directory, or the second would take the first's wallet.
