@@ -21,6 +21,12 @@ on:
   schedule:
     - cron: "23 4 * * 1"
 
+permissions:
+  # Write, for one reason: a commit comment carrying the failure output. Reading
+  # a red run must not require signing in to download its logs, and a comment on
+  # the commit is public where the run page is not.
+  contents: write
+
 jobs:
   burnin:
     runs-on: ubuntu-latest
@@ -48,15 +54,22 @@ jobs:
 
       # Both modules: the harness's own tests need no Docker and are cheap, and
       # the burn-in needs the containers the previous step pulled.
+      #
+      # Output goes to a file as well as to the run, because the step below is
+      # what publishes it. `pipefail` is not optional: the shell is `bash -e`,
+      # which looks at the pipeline's last command, and that is `tee`.
       - name: Pay a real invoice from a real regtest chain
+        id: burnin
         working-directory: backend
         env:
           RUN_CRYPTO_BURNIN: "1"
-        run: >-
-          python -m pytest
-          tests/test_crypto_burnin.py
-          tests/test_burnin_harness.py
-          -q
+        run: |
+          set -o pipefail
+          mkdir -p logs/burnin
+          python -m pytest \
+            tests/test_crypto_burnin.py \
+            tests/test_burnin_harness.py \
+            -q 2>&1 | tee logs/burnin/pytest.log
 
       # Compose, container and API logs land in backend/logs/burnin, which git
       # ignores. On a failure they are the only evidence of what the nodes said.
@@ -67,3 +80,94 @@ jobs:
           name: burnin-logs
           path: backend/logs/burnin/
           if-no-files-found: warn
+
+      # An artifact and a step log both need a GitHub session to read, which is
+      # no good when the person asked to look is an agent without credentials. A
+      # commit comment is readable by anyone once the token has written it, and
+      # it sits on the commit the run tested - the place somebody reading history
+      # already is.
+      #
+      # Nothing secret is published: the burn-in's logins are the word "burnin"
+      # in the harness, and no app secret is in this environment (`_api_env`
+      # strips the crypto ones on purpose).
+      - name: Publish the failure on the commit
+        if: failure()
+        working-directory: backend
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import urllib.error
+          import urllib.request
+
+          LIMIT = 45_000
+          log_dir = pathlib.Path("logs/burnin")
+
+
+          def tail(path, chars):
+              try:
+                  text = path.read_text(encoding="utf-8", errors="replace")
+              except OSError:
+                  return f"<no {path.name}>"
+              return text[-chars:].strip() or "<empty>"
+
+
+          # pytest first and always: it is the part that names the cause. The
+          # container logs follow as whole sections, and a section that will not
+          # fit is skipped rather than cut - half a ``` fence would swallow the
+          # rest of the comment - and it is skipped from the end, so the
+          # assertion is what survives.
+          head = [
+              f"Burn-in failed in {os.environ['RUN_URL']}",
+              "",
+              "### pytest",
+              "```",
+              tail(log_dir / "pytest.log", 12_000),
+              "```",
+          ]
+          sections = [
+              [f"### {path.name}", "```", tail(path, 8_000), "```"]
+              for path in sorted(log_dir.glob("*.log"), key=lambda p: p.stat().st_mtime)
+              if path.name != "pytest.log"
+          ]
+
+          kept, dropped = list(head), 0
+          for section in sections:
+              if len("\n".join(kept + section)) > LIMIT:
+                  dropped += 1
+                  continue
+              kept += section
+
+          body = "\n".join(kept)
+          if dropped:
+              body += f"\n\n<{dropped} log section(s) dropped to fit the comment limit>"
+          print(f"failure report: {len(body)} chars, {dropped} section(s) dropped")
+
+          request = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/comments",
+              data=json.dumps(
+                  {"commit_id": os.environ["GITHUB_SHA"], "body": body}
+              ).encode(),
+              headers={
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "Accept": "application/vnd.github+json",
+                  "Content-Type": "application/json",
+                  "User-Agent": "iftr-burnin",
+              },
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  print(f"posted the failure on {os.environ['GITHUB_SHA'][:7]}: {response.status}")
+          except urllib.error.HTTPError as exc:
+              # Not worth failing the job over: the artifact still exists, and the
+              # real failure is the one already reported above. A missing write
+              # permission shows up here as 403, not as a redder run.
+              print("could not post the failure:", exc.code, exc.read()[:300].decode(errors="replace"))
+          except Exception as exc:  # noqa: BLE001 - never mask the real failure
+              print("could not post the failure:", type(exc).__name__, exc)
+          PY
