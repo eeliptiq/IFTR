@@ -77,9 +77,15 @@ RATES = {"bitcoin": {"usd": 60000}, "monero": {"usd": 150}}
 # can fall back on, and the coinbase it spends matures after 100 blocks.
 MINED_BLOCKS = 101
 
-# Monero's coinbase outputs are locked for 60 blocks; 70 leaves a margin, and
-# `--fixed-difficulty=1` makes generating them a second's work.
-MONERO_FUNDING_BLOCKS = 70
+# Monero's coinbase outputs are locked for 60 blocks, and a transaction needs a
+# ring of 16 outputs to hide in - 15 decoys, taken from the chain's *unlocked*
+# outputs. A young regtest chain holds nothing else, so the funder has to own
+# enough matured coinbases to be both the payer and the decoy pool: 200 blocks
+# leave 140 unlocked ones. At 70 the wallet answered `transfer` with "not enough
+# outputs to use" (error -19, `not_enough_outs_to_mix`), which is the chain being
+# too young rather than anything about this app. `--fixed-difficulty=1` makes
+# generating them a few seconds' work.
+MONERO_FUNDING_BLOCKS = 200
 
 # Mining on regtest is supposed to be instant and is not always: 101 blocks took
 # four minutes on a Windows laptop and a second on Linux. The HTTP call waits for
