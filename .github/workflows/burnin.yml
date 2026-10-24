@@ -82,15 +82,20 @@ jobs:
           if-no-files-found: warn
 
       # An artifact and a step log both need a GitHub session to read, which is
-      # no good when the person asked to look is an agent without credentials. A
-      # commit comment is readable by anyone once the token has written it, and
-      # it sits on the commit the run tested - the place somebody reading history
-      # already is.
+      # no good when the person asked to look is an agent without credentials.
+      #
+      # Two channels, because they fail differently. An annotation needs no
+      # token at all - the runner attaches it to the job's own check run, and
+      # check runs of a public repository are readable by anyone - so the pytest
+      # tail goes there and that is the one that has to work. The commit comment
+      # needs `contents: write` and sits on the commit the run tested, which is
+      # more use to a human reading history; if the token turns out to be
+      # read-only it says so in the annotation instead of failing the job.
       #
       # Nothing secret is published: the burn-in's logins are the word "burnin"
       # in the harness, and no app secret is in this environment (`_api_env`
       # strips the crypto ones on purpose).
-      - name: Publish the failure on the commit
+      - name: Publish the failure where it can be read
         if: failure()
         working-directory: backend
         env:
@@ -147,6 +152,20 @@ jobs:
               body += f"\n\n<{dropped} log section(s) dropped to fit the comment limit>"
           print(f"failure report: {len(body)} chars, {dropped} section(s) dropped")
 
+
+          def escape(text):
+              """Workflow-command escaping, or a newline ends the annotation."""
+              return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+          # The readable-from-outside channel. Kept to the part that names the
+          # cause; the rest of the report is in the comment below and the
+          # artifact beside it.
+          print(
+              "::error title=Burn-in failure::"
+              + escape(tail(log_dir / "pytest.log", 6_000))
+          )
+
           request = urllib.request.Request(
               f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/comments",
               data=json.dumps(
@@ -162,12 +181,17 @@ jobs:
           )
           try:
               with urllib.request.urlopen(request, timeout=30) as response:
-                  print(f"posted the failure on {os.environ['GITHUB_SHA'][:7]}: {response.status}")
+                  outcome = f"comment posted on {os.environ['GITHUB_SHA'][:7]}: {response.status}"
           except urllib.error.HTTPError as exc:
-              # Not worth failing the job over: the artifact still exists, and the
-              # real failure is the one already reported above. A missing write
-              # permission shows up here as 403, not as a redder run.
-              print("could not post the failure:", exc.code, exc.read()[:300].decode(errors="replace"))
+              # Not worth failing the job over: the annotation above already has
+              # the assertion, and the artifact still exists. A read-only token
+              # shows up here as 403.
+              outcome = "comment rejected: {} {}".format(
+                  exc.code, exc.read()[:200].decode(errors="replace")
+              )
           except Exception as exc:  # noqa: BLE001 - never mask the real failure
-              print("could not post the failure:", type(exc).__name__, exc)
+              outcome = f"comment failed: {type(exc).__name__} {exc}"
+
+          print(outcome)
+          print("::notice title=Burn-in publish::" + escape(outcome))
           PY
