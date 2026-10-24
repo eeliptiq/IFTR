@@ -37,11 +37,33 @@ REQUEST_TIMEOUT_SECONDS = 10.0
 
 
 class _JsonRpcClient:
-    """The HTTP part both wallets share: POST JSON, read JSON, or say why not."""
+    """The HTTP part both wallets share: POST JSON, read JSON, or say why not.
 
-    def __init__(self, url: str, *, user: str = "", password: str = "") -> None:
+    The two nodes do not agree on how a login is proved, so the scheme belongs
+    to the wallet rather than to JSON-RPC. bitcoind takes HTTP Basic.
+    `monero-wallet-rpc` answers a correct Basic credential with 401 and wants
+    Digest - its own documentation shows `curl --digest` for `--rpc-login`, and
+    a real 0.18.5.4 wallet refused this app's Basic header until a burn-in
+    against the node said so. `MoneroWalletRpc` below asks for that scheme.
+    """
+
+    def __init__(
+        self,
+        url: str,
+        *,
+        user: str = "",
+        password: str = "",
+        digest: bool = False,
+    ) -> None:
         self.url = url.rstrip("/")
-        self._auth = (user, password) if user or password else None
+        if not (user or password):
+            self._auth: Any = None
+        elif digest:
+            # The handshake is httpx's: it sends the request bare, reads the
+            # wallet's challenge, and retries with the digest answer.
+            self._auth = httpx.DigestAuth(user, password)
+        else:
+            self._auth = (user, password)
 
     async def _post(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
@@ -178,6 +200,9 @@ class MoneroWalletRpc(_JsonRpcClient):
     """
 
     asset_code = ASSET_XMR
+
+    def __init__(self, url: str, *, user: str = "", password: str = "") -> None:
+        super().__init__(url, user=user, password=password, digest=True)
 
     async def _call(self, method: str, params: Dict[str, Any]) -> Dict[str, Any]:
         body = await self._post(

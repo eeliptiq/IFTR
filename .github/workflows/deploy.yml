@@ -64,7 +64,41 @@ jobs:
             echo "label=preview for $HEAD_BRANCH" >> "$GITHUB_OUTPUT"
           fi
 
+      # Publishing is the only thing here that needs a credential, and a
+      # repository without Cloudflare secrets is a normal state: the burn-in,
+      # the suite and every other job run without them. Their absence therefore
+      # skips this job with a notice rather than failing a run whose reason for
+      # existing was something else (a green Tests run for a branch that only
+      # wanted its crypto burn-in checked, for instance).
+      #
+      # A step's `if:` cannot read `secrets` directly, so the answer is decided
+      # once here and carried forward as an output.
+      - name: Check for Cloudflare credentials
+        id: credentials
+        env:
+          API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          LABEL: ${{ steps.target.outputs.label }}
+        run: |
+          missing=''
+          if [ -z "$API_TOKEN" ]; then missing="$missing CLOUDFLARE_API_TOKEN"; fi
+          if [ -z "$ACCOUNT_ID" ]; then missing="$missing CLOUDFLARE_ACCOUNT_ID"; fi
+
+          if [ -z "$missing" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+          echo "::notice::Deploy skipped ($LABEL): no Cloudflare credentials in this repository (missing:$missing). Add both secrets to publish."
+          {
+            echo "### Deploy skipped ($LABEL)"
+            echo
+            echo "Nothing was published: this repository has no Cloudflare credentials (missing:$missing). Add \`CLOUDFLARE_API_TOKEN\` and \`CLOUDFLARE_ACCOUNT_ID\` as repository or environment secrets and the next green Tests run will publish. Everything else that ran is unaffected."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Download the bundle Tests built
+        if: steps.credentials.outputs.configured == 'true'
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
@@ -76,6 +110,7 @@ jobs:
       # is no 404.html, which is easy to lose. Saying it out loud keeps deep
       # links such as /orders/order_… working on a refresh.
       - name: Route client-side URLs to the app
+        if: steps.credentials.outputs.configured == 'true'
         run: |
           test -f build/index.html || { echo "::error::the artifact has no index.html"; exit 1; }
           printf '/*    /index.html   200\n' > build/_redirects
@@ -107,6 +142,7 @@ jobs:
 
       - name: Publish
         id: publish
+        if: steps.credentials.outputs.configured == 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

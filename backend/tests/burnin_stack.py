@@ -102,6 +102,11 @@ class Rpc:
     Bitcoin speaks 1.0 and puts the wallet name in the URL path; Monero speaks
     2.0 at `/json_rpc`. Both answer `{"result": ...}` or `{"error": ...}`, which
     is the whole of what this class relies on.
+
+    They also disagree about logins, and this class does not paper over it:
+    bitcoind confirms one with HTTP Basic, while `monero-wallet-rpc` answers a
+    correct Basic credential with 401 and expects Digest. Sending the wrong one
+    is what made the first real burn-in run stop at the merchant wallet.
     """
 
     def __init__(
@@ -111,12 +116,18 @@ class Rpc:
         user: str = "",
         password: str = "",
         version: str = "2.0",
+        digest: bool = False,
         timeout: float = 60.0,
     ) -> None:
         self.url = url.rstrip("/")
         self.version = version
         self.timeout = timeout
-        self._auth = (user, password) if user or password else None
+        if not (user or password):
+            self._auth: Any = None
+        elif digest:
+            self._auth = httpx.DigestAuth(user, password)
+        else:
+            self._auth = (user, password)
 
     def call(
         self,
@@ -625,7 +636,9 @@ class BurnIn:
         # loopback bind inside a container cannot be published. The daemon only
         # serves this private network and 127.0.0.1, so it does not need one.
         self.xmr_daemon = Rpc(f"http://127.0.0.1:{self.ports['monerod']}/json_rpc")
-        auth = {"user": MONERO_USER, "password": MONERO_PASSWORD}
+        # Digest, not Basic: the wallet daemons are started with `--rpc-login`,
+        # and that is the scheme `monero-wallet-rpc` accepts.
+        auth = {"user": MONERO_USER, "password": MONERO_PASSWORD, "digest": True}
         merchant = Rpc(
             f"http://127.0.0.1:{self.ports['xmr_merchant']}/json_rpc", **auth
         )

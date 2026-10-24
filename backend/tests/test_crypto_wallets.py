@@ -28,7 +28,7 @@ from app.crypto_wallets import BitcoinCoreWallet, MoneroWalletRpc
 def rpc_server():
     """A local HTTP server that records requests and answers from a callback."""
 
-    state = SimpleNamespace(requests=[], responder=None)
+    state = SimpleNamespace(requests=[], responder=None, challenge=None)
 
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):  # noqa: N802 - the name http.server calls
@@ -42,6 +42,17 @@ def rpc_server():
                     "auth": self.headers.get("Authorization"),
                 }
             )
+            # A server that wants Digest answers anything else with a challenge,
+            # which is what monero-wallet-rpc does - including to a correct
+            # Basic credential.
+            if state.challenge and not str(
+                self.headers.get("Authorization") or ""
+            ).startswith("Digest "):
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", state.challenge)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
             status, body = state.responder(self.path, payload)
             encoded = json.dumps(body).encode()
             self.send_response(status)
@@ -254,13 +265,30 @@ def test_monero_at_one_confirmation_does_not_settle_a_two_confirmation_policy(
     assert reading.confirmations == 1
 
 
-def test_monero_sends_its_login_when_configured(rpc_server):
+def test_monero_answers_a_digest_challenge_and_never_sends_basic(rpc_server):
+    """The scheme matters, and a real wallet is what settled the argument.
+
+    `monero-wallet-rpc` answered this app's Basic header with 401 to a correct
+    login; its own documentation answers `--rpc-login` with `curl --digest`.
+    The burn-in against a real 0.18.5.4 wallet failed on exactly this. So the
+    first request carries no credential, and the wallet's challenge is answered
+    with a Digest header - never with Basic.
+    """
+    rpc_server.challenge = (
+        'Digest realm="monero-rpc", qop="auth", nonce="e2e-nonce", opaque="e2e"'
+    )
     rpc_server.responder = answer({"address": "8Stub", "address_index": 1})
     wallet = MoneroWalletRpc(rpc_server.url, user="monero", password="secret")
 
     asyncio.run(wallet.new_address("order_7"))
 
-    assert rpc_server.requests[0]["auth"].startswith("Basic ")
+    # The unauthenticated attempt that earns the challenge, then the answer.
+    assert len(rpc_server.requests) == 2
+    assert rpc_server.requests[0]["auth"] is None
+    answered = rpc_server.requests[1]["auth"]
+    assert answered.startswith("Digest ")
+    assert 'username="monero"' in answered
+    assert rpc_server.requests[-1]["payload"]["method"] == "create_address"
 
 
 def test_an_unreachable_wallet_is_a_wallet_error():
