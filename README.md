@@ -528,8 +528,9 @@ changing either of them.
 
 From then on a green `Tests` on `main` publishes the site and its run summary
 carries the URL. A deploy with no Cloudflare secrets does not fail: it skips the
-publish step with a notice saying which secret is missing, so the rest of the run
-still reports its own result.
+publish step with a notice saying which secret is missing and which Pages project
+it would have published to, so the rest of the run still reports its own result
+and the run page still answers "what would have gone where".
 
 #### Preview cleanup
 
