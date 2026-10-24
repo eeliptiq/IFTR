@@ -86,6 +86,13 @@ services:
   # Also absent: `--rpc-bind-ip` and `--confirm-external-bind`. The image's
   # entrypoint adds both, to 0.0.0.0, as soon as it sees `--rpc-login` - and a
   # second copy of either makes the wallet daemon exit before it binds.
+  #
+  # `--allow-mismatched-daemon-version` is not optional here. Regtest reports
+  # hard fork v16 at height 1, which the wallet reads as "this daemon is ahead of
+  # me" and refuses to refresh over - even when both binaries are the same
+  # release, which they are. Without the flag every `refresh` answers
+  # `Unexpected hard fork version v16 at height 1`, and nothing about the chain
+  # is wrong. Upstream: monero-project/monero#8600.
   # ---------------------------------------------------------------------------
   monero-merchant:
     image: ${BURNIN_XMR_WALLET_IMAGE:-ghcr.io/sethforprivacy/simple-monero-wallet-rpc:v0.18.5.4}
@@ -95,6 +102,7 @@ services:
       - --trusted-daemon
       - --wallet-dir=/home/monero/wallet
       - --rpc-bind-port=18083
+      - --allow-mismatched-daemon-version
       - --rpc-login=${BURNIN_MONERO_LOGIN:-burnin:burnin}
     ports:
       - "127.0.0.1:${BURNIN_XMR_MERCHANT_PORT:-18083}:18083"
@@ -116,6 +124,8 @@ services:
       - --trusted-daemon
       - --wallet-dir=/home/monero/wallet
       - --rpc-bind-port=18084
+      # Same regtest hard-fork mismatch as the merchant's wallet; see above.
+      - --allow-mismatched-daemon-version
       - --rpc-login=${BURNIN_MONERO_LOGIN:-burnin:burnin}
     ports:
       - "127.0.0.1:${BURNIN_XMR_FUNDER_PORT:-18084}:18084"

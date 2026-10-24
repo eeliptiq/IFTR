@@ -538,6 +538,8 @@ class BurnIn:
         self.rate_server: Optional[ThreadingHTTPServer] = None
         self.bitcoin: Optional[BitcoinNode] = None
         self.xmr_daemon: Optional[Rpc] = None
+        self.xmr_merchant: Optional[Rpc] = None
+        self.xmr_funder: Optional[Rpc] = None
         self.monero: Optional[MoneroWallets] = None
         self.btc_wallets: Optional[BitcoinWallets] = None
         self.api_url = ""
@@ -625,12 +627,18 @@ class BurnIn:
         return "--- the containers ---\n" + "\n".join(report)
 
     def start_containers(self) -> None:
-        """Pull, start, and wait for both nodes and both wallet daemons."""
+        """Bring the four containers up and point a client at each.
+
+        Nothing is *provisioned* here, on purpose. Which chain a test needs is
+        that test's business, and each half is provisioned by the fixture that
+        asks for it: one broken chain must not be able to red a test about the
+        other one. The first CI run of this harness showed why - a regtest
+        hard-fork quirk in the Monero wallets errored out all three tests, the
+        two Bitcoin ones included, before either chain had been asked anything.
+        """
         self._compose(["up", "-d", "--remove-orphans"])
 
         self.bitcoin = BitcoinNode(f"http://127.0.0.1:{self.ports['btc']}")
-        self.bitcoin.wait_ready()
-
         # The daemon is unauthenticated and the two wallet daemons are not: the
         # wallet images bind loopback unless a login is configured, and a
         # loopback bind inside a container cannot be published. The daemon only
@@ -639,10 +647,52 @@ class BurnIn:
         # Digest, not Basic: the wallet daemons are started with `--rpc-login`,
         # and that is the scheme `monero-wallet-rpc` accepts.
         auth = {"user": MONERO_USER, "password": MONERO_PASSWORD, "digest": True}
-        merchant = Rpc(
+        self.xmr_merchant = Rpc(
             f"http://127.0.0.1:{self.ports['xmr_merchant']}/json_rpc", **auth
         )
-        funder = Rpc(f"http://127.0.0.1:{self.ports['xmr_funder']}/json_rpc", **auth)
+        self.xmr_funder = Rpc(
+            f"http://127.0.0.1:{self.ports['xmr_funder']}/json_rpc", **auth
+        )
+
+    # -- provisioning -------------------------------------------------------
+
+    def ensure_bitcoin(self) -> BitcoinWallets:
+        """The miner's wallet, the app's watch wallet, and coins in the miner's.
+
+        Idempotent: a module of tests shares one stack, so the first test that
+        needs Bitcoin pays for bringing it up once.
+        """
+        if self.btc_wallets is not None:
+            return self.btc_wallets
+
+        if self.bitcoin is None:
+            raise AssertionError(
+                "Bitcoin was provisioned before the containers were started"
+            )
+
+        try:
+            self.bitcoin.wait_ready()
+            self.btc_wallets = provision_bitcoin(self.bitcoin)
+        except AssertionError as exc:
+            # Only on the way out: the report is what turns "the node never
+            # answered" into the one line the container printed.
+            raise AssertionError(f"{exc}\n{self.container_report()}") from None
+
+        return self.btc_wallets
+
+    def ensure_monero(self) -> MoneroWallets:
+        """Both wallet daemons answering, both wallets open, coins in the funder's."""
+        if self.monero is not None:
+            return self.monero
+
+        if (
+            self.xmr_daemon is None
+            or self.xmr_merchant is None
+            or self.xmr_funder is None
+        ):
+            raise AssertionError(
+                "Monero was provisioned before the containers were started"
+            )
 
         try:
             wait_until(
@@ -650,19 +700,22 @@ class BurnIn:
                 timeout=240,
                 describe="monerod regtest never answered",
             )
-            for name, wallet in (("merchant", merchant), ("funder", funder)):
+            for name, wallet in (
+                ("merchant", self.xmr_merchant),
+                ("funder", self.xmr_funder),
+            ):
                 wait_until(
                     lambda wallet=wallet: "version" in wallet.call("get_version"),
                     timeout=120,
                     describe=f"the {name} wallet-RPC never answered",
                 )
+            self.monero = provision_monero(
+                self.xmr_daemon, self.xmr_merchant, self.xmr_funder
+            )
         except AssertionError as exc:
-            # Only when a wait has already failed: the report is what turns
-            # "never answered" into the one line the container printed.
             raise AssertionError(f"{exc}\n{self.container_report()}") from None
 
-        self.btc_wallets = provision_bitcoin(self.bitcoin)
-        self.monero = provision_monero(self.xmr_daemon, merchant, funder)
+        return self.monero
 
     # -- the API ------------------------------------------------------------
 

@@ -146,6 +146,24 @@ def stack():
 
 
 @pytest.fixture(scope="module")
+def btc(stack):
+    """Bitcoin provisioned, and nothing else.
+
+    Kept apart from `stack` so the Bitcoin proofs stand or fall on their own: a
+    Monero wallet that will not open is not evidence about Bitcoin, and the
+    first run of this harness reddened both Bitcoin tests for exactly that
+    reason before either chain had been asked anything.
+    """
+    return stack.ensure_bitcoin()
+
+
+@pytest.fixture(scope="module")
+def xmr(stack):
+    """Monero provisioned, and only the test that pays in it asks for this."""
+    return stack.ensure_monero()
+
+
+@pytest.fixture(scope="module")
 def world(stack):
     """A customer, a kitchen and a one-dish menu, all through the real API."""
     with httpx.Client(base_url=stack.api_url, timeout=60) as client:
@@ -300,14 +318,14 @@ def wait_until_paid(world, order: Order) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def test_a_bitcoin_invoice_is_paid_by_a_real_node(stack, world):
+def test_a_bitcoin_invoice_is_paid_by_a_real_node(stack, world, btc):
     """From a watch-only descriptor to a paid order, with no page polling."""
     order = place_order(world, "btc")
     assert order.address.startswith("bcrt1"), order.address
     # The miner's coins live on a change address the invoice chain never
     # reaches, so a settled invoice really was paid and not just holding the
     # coinbase from provisioning.
-    assert order.address != stack.btc_wallets.mining_address
+    assert order.address != btc.mining_address
 
     # The wallet the app is configured with is supposed to hold no keys. If that
     # ever stops being true, every "the server cannot move your money" claim in
@@ -315,7 +333,7 @@ def test_a_bitcoin_invoice_is_paid_by_a_real_node(stack, world):
     watch_info = stack.bitcoin.call("getwalletinfo", wallet=BTC_WATCH_WALLET)
     assert watch_info["private_keys_enabled"] is False
 
-    pay_bitcoin(stack.bitcoin, stack.btc_wallets, order.address, order.amount)
+    pay_bitcoin(stack.bitcoin, btc, order.address, order.amount)
 
     paid = wait_until_paid(world, order)
     assert paid["total_amount"] == pytest.approx(order.invoice["fiat_total_cents"] / 100)
@@ -337,7 +355,7 @@ def test_a_bitcoin_invoice_is_paid_by_a_real_node(stack, world):
     assert status["payment_status"] == "paid"
 
 
-def test_a_short_bitcoin_payment_is_seen_and_does_not_settle(stack, world):
+def test_a_short_bitcoin_payment_is_seen_and_does_not_settle(stack, world, btc):
     """Half an invoice is a partial payment, not a paid order.
 
     This is the case a customer creates by typing an amount by hand, and the one
@@ -348,7 +366,7 @@ def test_a_short_bitcoin_payment_is_seen_and_does_not_settle(stack, world):
     half = (Decimal(order.amount) / 2).quantize(Decimal("0.00000001"))
     assert half > 0
 
-    pay_bitcoin(stack.bitcoin, stack.btc_wallets, order.address, str(half))
+    pay_bitcoin(stack.bitcoin, btc, order.address, str(half))
 
     def seen():
         response = world.client.get(
@@ -378,7 +396,7 @@ def test_a_short_bitcoin_payment_is_seen_and_does_not_settle(stack, world):
 # ---------------------------------------------------------------------------
 
 
-def test_a_monero_invoice_is_paid_by_a_real_node(stack, world):
+def test_a_monero_invoice_is_paid_by_a_real_node(stack, world, xmr):
     """A subaddress payment, two regtest blocks, and the watcher's settlement."""
     order = place_order(world, "xmr")
     # Regtest uses the mainnet address format, and `create_address` returns a
@@ -386,14 +404,12 @@ def test_a_monero_invoice_is_paid_by_a_real_node(stack, world):
     # has to be.
     assert order.address.startswith("8"), order.address
 
-    txid = pay_monero(
-        stack.xmr_daemon, stack.monero, order.address, order.amount_atomic
-    )
+    txid = pay_monero(stack.xmr_daemon, xmr, order.address, order.amount_atomic)
     assert txid
 
     # Wallet RPC refreshes on its own schedule; asking it once removes that
     # variable from a test that is about the watcher, not about refresh timing.
-    stack.monero.merchant.call("refresh")
+    xmr.merchant.call("refresh")
 
     paid = wait_until_paid(world, order)
     assert paid["total_amount"] == pytest.approx(order.invoice["fiat_total_cents"] / 100)
