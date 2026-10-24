@@ -521,7 +521,8 @@ changing either of them.
 4. **The backend itself.** Something has to be serving `backend/` over HTTPS,
    with its own database and secrets, and its `FRONTEND_ORIGINS` has to include
    `https://<project>.pages.dev` (plus a regex for previews). No workflow here
-   deploys it; without it the site loads and every call is blocked by CORS.
+   deploys it; without it the site loads and every call is blocked by CORS. [What
+   the backend has to expose](#what-the-backend-has-to-expose) lists the rest.
 5. **Rebuild.** The origin is baked into the bundle at build time, so after
    setting or changing it, re-run `Tests` — the deploy republishes the artifact
    it is given and never rebuilds.
@@ -531,6 +532,80 @@ carries the URL. A deploy with no Cloudflare secrets does not fail: it skips the
 publish step with a notice saying which secret is missing and which Pages project
 it would have published to, so the rest of the run still reports its own result
 and the run page still answers "what would have gone where".
+
+#### What the backend has to expose
+
+[`deploy.yml`](.github/workflows/deploy.yml) publishes the frontend and nothing
+else. The API is a separate deployment on its own host, and a published site
+works against it only if that deployment does the following. The first table is
+what has to be reachable; the rest is what the deployment needs so that it keeps
+answering.
+
+| Path | Reachable from | Why |
+| --- | --- | --- |
+| `/api/…` | the published site's browser | every call the frontend makes. 55 routes, 47 of which need a bearer token; the rest are sign-in, sign-out, sign-up, payment methods, the Stripe webhook, and the public restaurant and user profiles |
+| `/uploads/…` | the published site's browser | uploaded photos are a static mount, not a route: no token is asked for and none can be |
+| `/` | whatever the host polls | `{"message": "IFTR API is running", "status": "ok"}` — enough for a health check |
+
+The browser calls that host from the site's origin, so CORS decides whether any
+of it works, and the preflight has to reach FastAPI rather than be answered or
+blocked by a proxy or CDN. With `FRONTEND_ORIGINS=https://iftr.pages.dev`, a
+preflight for `POST /api/auth/login` answers `200` with
+`access-control-allow-credentials: true` and the origin echoed back; an origin
+outside the list gets `400`. Both the site and its previews therefore belong in
+that setting, exactly as [Who may call the API](#who-may-call-the-api) describes.
+
+The same list has a second consumer that is easy to miss: checkout checks the
+`origin_url` it is given against it and answers `400 origin_url is not an origin
+this API serves` otherwise. A missing origin is a broken payment flow, not just a
+CORS error.
+
+Stripe needs one route of its own: `POST
+https://<api-host>/api/payments/webhook`, public, unauthenticated, reachable from
+Stripe's servers, registered as an endpoint in Stripe, with its signing secret in
+`STRIPE_WEBHOOK_SECRET`. The handler verifies `Stripe-Signature` against the raw
+body — without the secret it answers `503` and records the refusal, and with it a
+body that does not verify gets `400`. That half is what covers a customer who
+pays and closes the tab, so a deployment without it loses those payments
+silently.
+
+Nothing else needs an inbound route. There are no websocket or server-sent-event
+endpoints, and crypto never calls back: the watcher asks the wallets on a timer
+(`CRYPTO_WATCH_INTERVAL_SECONDS`, 30 by default).
+
+**State that has to survive a restart**
+
+| Setting | Default | What goes wrong without somewhere to keep it |
+| --- | --- | --- |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./iftr.db` | the database is a file beside the process. On a host that rebuilds its container the site comes up against empty tables every deploy, because startup creates them. Give it a persistent disk, or point it at Postgres — and add `asyncpg`, which `requirements.txt` does not install, before using a `postgresql+asyncpg://` URL |
+| `UPLOADS_DIR` | `backend/uploads` | rows keep pointing at `/uploads/<name>` while the files are gone: the API still answers `200` for the record and the photo is a broken image. Uploads are the only state outside the database |
+
+Two details of how it runs. Start **one worker**, as `run.sh` does: the uploads
+sweep and the crypto watcher each start per process, so two workers sweep the
+same directory and scan the same wallets. And allow request bodies of at least
+5 MB, the upload cap — a proxy limit below that turns a dish photo into a 413 the
+app never sees.
+
+**Settings that must not be left at their defaults**
+
+| Setting | What it protects |
+| --- | --- |
+| `JWT_SECRET_KEY` | every session token. The fallback is a literal string in `core/auth.py`, so a deployment that forgets it accepts tokens minted with a key that is in the repository |
+| `ENCRYPTION_KEY`, `ENCRYPTION_SALT` | the encrypted columns — licence numbers, plates, locations. With either unset the key is derived from an empty string and a salt that is in the source. Set both once, before the first real record: changing them later makes what is already stored unreadable, and there is no re-key path |
+| `AUDIT_HASH_SALT` | the audit trail's hashes |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | card payments. With both unset the app still runs, checkout answers `503`, and orders are placed unpaid |
+| `BITCOIN_RPC_*`, `MONERO_WALLET_RPC_*`, `CRYPTO_RATE_URL` | crypto payments. With no wallet configured the invoice route answers `503` and the rest of the app is unaffected |
+
+The API also needs **egress**, not ingress, to `api.stripe.com`, to whatever feed
+`CRYPTO_RATE_URL` names (CoinGecko by default), and to the wallet RPC endpoints.
+A node on your own machine is not reachable from a hosting provider without a
+tunnel, which is why those settings take a URL.
+
+Before the site is useful, an administrator has to be seeded from the
+deployment's own shell, because registration cannot grant that role: run
+`./run.sh create-admin you@example.com` against the production database once. And
+decide about `/docs` and `/openapi.json`, which are public by default and describe
+every route above.
 
 #### Preview cleanup
 
