@@ -491,6 +491,14 @@ the deploy allow that but say so in an annotation, because a silent one is how a
 site looks alive while being useless. Set the variable for the environment you
 care about and re-run `Tests`.
 
+The deploy also refuses a bundle whose JavaScript never mentions the expected
+origin: a build that ran before the variable was set still says
+`http://localhost:8000` and would otherwise publish happily. The string lives in
+the entry chunk, not in `index.html` — the HTML links its scripts relatively —
+so that is where it is looked for, and the error prints the origins the bundle
+does contain. Seeing it means the artifact predates the variable: re-run
+`Tests`, don't re-deploy.
+
 ##### Checklist for a first deploy
 
 In this order. Steps 1–2 happen once; 3–4 are the pair that decides whether the

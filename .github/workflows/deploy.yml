@@ -123,6 +123,7 @@ jobs:
       # API, a preview gets the preview API. Nothing here can change what is in
       # the artifact - this only reports it, so a wrong variable is visible.
       - name: Say which API this bundle was built against
+        id: api
         env:
           ON_MAIN: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
           PRODUCTION_API: ${{ vars.REACT_APP_BACKEND_URL }}
@@ -140,6 +141,48 @@ jobs:
             echo "Bundle built against $origin ($role)"
           fi
 
+          echo "origin=$origin" >> "$GITHUB_OUTPUT"
+          echo "role=$role" >> "$GITHUB_OUTPUT"
+
+      # The origin is inlined at build time, so a bundle built before the variable
+      # was set still says localhost - and it would publish quite happily, giving
+      # a site that loads and cannot reach an API. The artifact is the one Tests
+      # uploaded, so the comparison is against what *this* workflow believes the
+      # build used: a disagreement means the artifact is from an older run, and
+      # the fix is another Tests run, not a deploy.
+      #
+      # It reads the JavaScript, not index.html: CRA keeps the origin in the entry
+      # chunk and links it from the HTML relatively, so index.html never mentions
+      # it. Verified against a real build, where the string appears 21 times in
+      # main.<hash>.js and zero times in index.html.
+      - name: Check the bundle was built against this API
+        id: bundle
+        if: steps.credentials.outputs.configured == 'true'
+        env:
+          EXPECTED: ${{ steps.api.outputs.origin }}
+          ROLE: ${{ steps.api.outputs.role }}
+        run: |
+          target=$(printf '%s' "$EXPECTED" | sed 's:/*$::')
+
+          if [ -z "$target" ]; then
+            echo "::warning title=Nothing to compare::No $ROLE API origin is configured, so this bundle is expected to talk to http://localhost:8000 and there is nothing to check it against. Set the variable and re-run Tests."
+            exit 0
+          fi
+
+          if grep -rqF --include='*.js' -- "$target" build/static/js; then
+            echo "The bundle references $target"
+            exit 0
+          fi
+
+          # Say what it does reference: the answer is nearly always localhost, or
+          # the other environment's API.
+          found=$(grep -rhoE --include='*.js' 'https?://[a-zA-Z0-9._-]+(:[0-9]+)?' build/static/js \
+            | sort | uniq -c | sort -rn | head -5)
+
+          echo "::error title=The bundle was not built for $target::Nothing in this artifact's JavaScript mentions the $ROLE API origin '$target', so publishing it would put a site online whose every request goes somewhere else - usually http://localhost:8000 from a build that ran before the variable was set. Re-run Tests so the build picks the variable up, then let the deploy that follows publish its artifact."
+          echo "absolute origins in the bundle (count):"
+          echo "${found:-(none)}"
+          exit 1
       # A project that was never created is the most common first-deploy failure,
       # and `wrangler pages deploy` reports it as a 404 inside its own output,
       # which reads like a credentials problem and takes a session to look at.
