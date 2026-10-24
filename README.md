@@ -539,7 +539,11 @@ and the run page still answers "what would have gone where".
 else. The API is a separate deployment on its own host, and a published site
 works against it only if that deployment does the following. The first table is
 what has to be reachable; the rest is what the deployment needs so that it keeps
-answering.
+answering. Every setting named below is in
+[`backend/.env.example`](backend/.env.example) with its default and what goes
+wrong without it — and note who reads that file: `dev_payments.sh` loads
+`backend/.env` itself, while `run.sh` and the app see only the process
+environment, so export the file first (`set -a; . ./.env; set +a`).
 
 | Path | Reachable from | Why |
 | --- | --- | --- |
