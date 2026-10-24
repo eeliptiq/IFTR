@@ -372,8 +372,8 @@ tracker either way, and the message says nothing was charged.
 - **Backend suite** — Python 3.14 and the same `pytest` a developer runs.
 - **Frontend build** — `npm ci` then `npm run build`, so an import that resolves
   under the dev server's lazy compile but not in a production bundle fails the
-  pull request instead of the deploy. The bundle is checked to exist; it is not
-  uploaded anywhere.
+  pull request instead of the deploy. The bundle is checked to exist and kept as
+  the `frontend-build` artifact, which is the copy the deploy publishes.
 - **Journeys through the UI** — needs the suite, installs Chromium and the
   frontend, and runs `tests/test_e2e_checkout.py`,
   `tests/test_e2e_admin_console.py`, `tests/test_e2e_surplus.py` and
@@ -454,6 +454,35 @@ A deploy with neither API variable set publishes a bundle that talks to
 the deploy allow that but say so in an annotation, because a silent one is how a
 site looks alive while being useless. Set the variable for the environment you
 care about and re-run `Tests`.
+
+##### Checklist for a first deploy
+
+In this order. Steps 1–2 happen once; 3–4 are the pair that decides whether the
+published site can talk to an API at all; 5 is the one people skip after
+changing either of them.
+
+1. **Cloudflare, once.** Create a Pages project (the repository name, or set
+   `CLOUDFLARE_PAGES_PROJECT` to whatever you called it) and set its production
+   branch to `main`.
+2. **Credentials.** Settings → Secrets and variables → Actions, **Secrets**:
+   `CLOUDFLARE_API_TOKEN` (a token with *Cloudflare Pages: Edit*) and
+   `CLOUDFLARE_ACCOUNT_ID`. Environment-scoped instead? Put both on `production`
+   *and* `preview` — the deploy job picks its environment by branch.
+3. **The API origin.** The same page, **Variables** tab: `REACT_APP_BACKEND_URL`
+   is the origin only — no trailing slash, no `/api`, because every call is
+   `${origin}/api/…`. `PREVIEW_BACKEND_URL` is optional and only affects previews.
+4. **The backend itself.** Something has to be serving `backend/` over HTTPS,
+   with its own database and secrets, and its `FRONTEND_ORIGINS` has to include
+   `https://<project>.pages.dev` (plus a regex for previews). No workflow here
+   deploys it; without it the site loads and every call is blocked by CORS.
+5. **Rebuild.** The origin is baked into the bundle at build time, so after
+   setting or changing it, re-run `Tests` — the deploy republishes the artifact
+   it is given and never rebuilds.
+
+From then on a green `Tests` on `main` publishes the site and its run summary
+carries the URL. A deploy with no Cloudflare secrets does not fail: it skips the
+publish step with a notice saying which secret is missing, so the rest of the run
+still reports its own result.
 
 #### Preview cleanup
 
