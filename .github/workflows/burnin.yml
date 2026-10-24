@@ -166,8 +166,14 @@ jobs:
               + escape(tail(log_dir / "pytest.log", 6_000))
           )
 
+          # Commit comments hang off the commit, not the repository: the
+          # repository-level /comments collection is issues-and-PRs only, and
+          # posting there answers 404 rather than saying which endpoint was
+          # meant. That is how the first version of this step failed.
           request = urllib.request.Request(
-              f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/comments",
+              "https://api.github.com/repos/{}/commits/{}/comments".format(
+                  os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_SHA"]
+              ),
               data=json.dumps(
                   {"commit_id": os.environ["GITHUB_SHA"], "body": body}
               ).encode(),
