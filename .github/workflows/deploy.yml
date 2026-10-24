@@ -175,7 +175,21 @@ jobs:
 
           case "$code" in
             200)
-              echo "Pages project $PROJECT exists"
+              # The project's own production branch is what decides whether
+              # `--branch=main` publishes the site or quietly creates a preview
+              # that never reaches it. That is invisible in the run - the upload
+              # succeeds either way - so it is checked here, and only for a
+              # production deploy: a preview is meant to use its own branch.
+              #
+              # Nothing is concluded when the field cannot be read: an empty
+              # answer means "no opinion", never "fine".
+              read_branch='import json,sys; print(json.load(sys.stdin)["result"]["production_branch"])'
+              branch=$(python3 -c "$read_branch" < "$body" 2>/dev/null || true)
+              echo "Pages project $PROJECT exists (production branch: ${branch:-unreadable})"
+
+              if [ "$LABEL" = "production" ] && [ -n "$branch" ] && [ "$branch" != "main" ]; then
+                echo "::warning title=The Pages project publishes from '$branch', not main::Project '$PROJECT' has production branch '$branch', but this workflow deploys with --branch=main. The upload succeeds and lands as a preview, so the real site never updates. Change the project's production branch to main in Cloudflare rather than editing this workflow."
+              fi
               ;;
             404)
               echo "::error title=No Pages project named $PROJECT::Cloudflare has no Pages project '$PROJECT' in account $ACCOUNT_ID, so there is nowhere to publish $LABEL. Create it (wrangler pages project create $PROJECT --production-branch=main) or point the repository variable CLOUDFLARE_PAGES_PROJECT at the project you meant."

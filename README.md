@@ -481,7 +481,9 @@ The project's own production branch has to be `main` — that is the only branch
 this workflow publishes as the real site. If the project was created against
 another branch, a deploy with `--branch=main` would quietly become a preview and
 the site would never update; change the production branch in Cloudflare instead
-of editing the workflow.
+of editing the workflow. The job reads that field when it checks the project and
+warns on a production deploy when it is not `main`, because that mistake is
+otherwise invisible — the upload succeeds and the site simply never changes.
 
 A deploy with neither API variable set publishes a bundle that talks to
 `http://localhost:8000` — it loads, and every request fails. Both the build and
