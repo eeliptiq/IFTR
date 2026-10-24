@@ -392,6 +392,37 @@ warning — never to the other environment's API, because a preview that quietly
 talked to production is how a review writes to real data. It builds without
 source maps because that bundle gets published.
 
+##### What is cached, and what cancels
+
+Four choices in these files are deliberate rather than defaults, and each is
+easy to delete without noticing what it held up:
+
+- **The caches are keyed on the manifest, not on the tree.** `setup-python`
+  caches pip against `backend/requirements.txt`, `setup-node` caches npm against
+  `frontend/package-lock.json`. Editing source reuses the cache; editing either
+  manifest is a miss, which is correct — that is the only change that can alter
+  what has to be installed. Keying on the tree instead would miss on every
+  commit and save nothing.
+- **Tests cancel per ref** ([`tests.yml`](.github/workflows/tests.yml)).
+  `group: tests-${{ github.ref }}` with
+  `cancel-in-progress: true`: a second push to one branch makes the first run's
+  verdict pointless, and only the last one describes the tip.
+- **Deploys cancel per branch, except production**
+  ([`deploy.yml`](.github/workflows/deploy.yml)). The group is the head branch
+  and `cancel-in-progress` is true only when `Tests` was triggered by a pull
+  request: a newer commit makes that PR's older preview pointless, but a
+  production publish is never cut off halfway, which would leave the site on a
+  bundle nobody chose.
+- **Preview cleanup never cancels**, so a half-run cleanup cannot leave behind
+  exactly what it exists to remove — the alias and its deployments. That is the
+  `cancel-in-progress: false` in
+  [`preview-cleanup.yml`](.github/workflows/preview-cleanup.yml).
+
+The burn-in has no concurrency group at all, and does not need one: each run
+names its own compose project and takes free host ports, so two runs cannot
+collide on separate runners, and the weekly schedule must not cancel somebody's
+manual run.
+
 #### Deploy
 
 [`deploy.yml`](.github/workflows/deploy.yml) publishes the frontend to
