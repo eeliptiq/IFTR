@@ -577,7 +577,7 @@ endpoints, and crypto never calls back: the watcher asks the wallets on a timer
 
 | Setting | Default | What goes wrong without somewhere to keep it |
 | --- | --- | --- |
-| `DATABASE_URL` | `sqlite+aiosqlite:///./iftr.db` | the database is a file beside the process. On a host that rebuilds its container the site comes up against empty tables every deploy, because startup creates them. Give it a persistent disk, or point it at Postgres — and add `asyncpg`, which `requirements.txt` does not install, before using a `postgresql+asyncpg://` URL |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./iftr.db` | the database is a file beside the process. On a host that rebuilds its container the site comes up against empty tables every deploy, because startup creates them. Give it a persistent disk, or point it at Postgres with a `postgresql+asyncpg://` URL — `requirements.txt` installs both drivers. Startup creates missing tables and never alters existing ones, so a column added to a model is a manual step |
 | `UPLOADS_DIR` | `backend/uploads` | rows keep pointing at `/uploads/<name>` while the files are gone: the API still answers `200` for the record and the photo is a broken image. Uploads are the only state outside the database |
 
 Two details of how it runs. Start **one worker**, as `run.sh` does: the uploads

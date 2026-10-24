@@ -20,7 +20,11 @@ pydantic_core==2.46.5
 email-validator==2.3.0
 sqlalchemy[asyncio]==2.1.4   # [asyncio] pulls in greenlet
 greenlet==3.5.6
+# Database drivers, one per URL scheme database.py accepts: aiosqlite for the
+# default sqlite+aiosqlite:///, asyncpg for postgresql+asyncpg://. The URL
+# cannot be imported without the matching one.
 aiosqlite==0.22.1
+asyncpg==0.32.0
 
 # --- Security ---
 python-jose[cryptography]==3.5.0
