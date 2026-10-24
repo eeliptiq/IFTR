@@ -456,7 +456,10 @@ The job also writes `_redirects` into the bundle so client-side routes such as
 `/orders/order_…` survive a refresh, and refuses an artifact with no
 `index.html`.
 
-It needs a Pages project that already exists, plus these repository settings:
+It needs a Pages project that already exists — before publishing, the job asks
+Cloudflare whether it is there and stops with an error naming it if not, rather
+than leaving wrangler's 404 to be read as a credentials problem — plus these
+repository settings:
 
 | Name | Kind | What it is |
 | --- | --- | --- |

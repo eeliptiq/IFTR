@@ -140,6 +140,62 @@ jobs:
             echo "Bundle built against $origin ($role)"
           fi
 
+      # A project that was never created is the most common first-deploy failure,
+      # and `wrangler pages deploy` reports it as a 404 inside its own output,
+      # which reads like a credentials problem and takes a session to look at.
+      # Asking Cloudflare first turns it into one sentence naming the project and
+      # the command that creates it.
+      #
+      # Only the answers that are certain are errors: 404 means the project is
+      # not there, 401/403 means the token cannot see it. A 5xx, a proxy or a body
+      # that is not the API's is a warning - `wrangler pages deploy` is the thing
+      # that actually knows, and failing on our own uncertainty would be worse
+      # than letting it speak.
+      - name: Check the Pages project exists
+        id: project
+        if: steps.credentials.outputs.configured == 'true'
+        env:
+          API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # The same name the publish step uses; drift here would check one
+          # project and deploy to another.
+          PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || github.event.repository.name }}
+          LABEL: ${{ steps.target.outputs.label }}
+        run: |
+          body=$(mktemp)
+          trap 'rm -f "$body"' EXIT
+
+          code=$(curl -sS --max-time 30 -o "$body" -w '%{http_code}' \
+            -H "Authorization: Bearer $API_TOKEN" \
+            -H 'Content-Type: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pages/projects/$PROJECT"
+          ) || code=000
+
+          detail=$(head -c 300 "$body" 2>/dev/null || true)
+
+          case "$code" in
+            200)
+              echo "Pages project $PROJECT exists"
+              ;;
+            404)
+              echo "::error title=No Pages project named $PROJECT::Cloudflare has no Pages project '$PROJECT' in account $ACCOUNT_ID, so there is nowhere to publish $LABEL. Create it (wrangler pages project create $PROJECT --production-branch=main) or point the repository variable CLOUDFLARE_PAGES_PROJECT at the project you meant."
+              echo "response: $detail"
+              exit 1
+              ;;
+            401|403)
+              echo "::error title=Cloudflare rejected the token::The Pages API answered $code for project '$PROJECT'. CLOUDFLARE_API_TOKEN needs the Cloudflare Pages: Edit permission on account $ACCOUNT_ID - a token that cannot see the project cannot publish to it either."
+              echo "response: $detail"
+              exit 1
+              ;;
+            000)
+              echo "::warning title=Could not check the Pages project::The Pages API could not be reached, so whether '$PROJECT' exists is unknown. Leaving it to wrangler."
+              ;;
+            *)
+              echo "::warning title=Could not check the Pages project::The Pages API answered $code, so whether '$PROJECT' exists is unknown. Leaving it to wrangler."
+              echo "response: $detail"
+              ;;
+          esac
+
       - name: Publish
         id: publish
         if: steps.credentials.outputs.configured == 'true'
