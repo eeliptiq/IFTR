@@ -50,7 +50,17 @@ jobs:
           EVENT: ${{ github.event.workflow_run.event }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || github.event.repository.name }}
         run: |
+          # A Pages project name is lowercase - it is also the <name>.pages.dev
+          # subdomain, so Cloudflare rejects capitals at creation. The fallback
+          # above is the repository's own name, which may well be 'IFTR', and a
+          # name Cloudflare could never have issued would fail as "project not
+          # found" on a repository that had done nothing wrong. Lowercasing here
+          # is a no-op for any name that can exist, and both the preflight and
+          # the publish read the result, so they cannot drift apart.
+          echo "project=$(printf '%s' "$PROJECT" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
           if [ "$EVENT" = "push" ] && [ "$HEAD_BRANCH" = "main" ]; then
             echo "branch=main" >> "$GITHUB_OUTPUT"
             echo "label=production" >> "$GITHUB_OUTPUT"
@@ -200,9 +210,9 @@ jobs:
         env:
           API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # The same name the publish step uses; drift here would check one
-          # project and deploy to another.
-          PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT || github.event.repository.name }}
+          # The same name the publish step uses, decided once in `target`;
+          # drift here would check one project and deploy to another.
+          PROJECT: ${{ steps.target.outputs.project }}
           LABEL: ${{ steps.target.outputs.label }}
         run: |
           body=$(mktemp)
@@ -262,11 +272,12 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # The Pages project must already exist (Cloudflare dashboard, or
           # `wrangler pages project create`). Its name comes from the repository
-          # variable, falling back to the repository's own name. Any --branch
-          # other than the project's production branch is a preview deployment.
+          # variable, falling back to the repository's own name lowercased (a
+          # Pages name is never mixed case). Any --branch other than the
+          # project's production branch is a preview deployment.
           command: >-
             pages deploy build
-            --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT || github.event.repository.name }}
+            --project-name=${{ steps.target.outputs.project }}
             --branch=${{ steps.target.outputs.branch }}
 
       # A preview nobody can find is not reviewed, and the deployment this job

@@ -465,7 +465,7 @@ repository settings:
 | --- | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | secret | API token with the *Cloudflare Pages: Edit* permission |
 | `CLOUDFLARE_ACCOUNT_ID` | secret | the account the project lives in |
-| `CLOUDFLARE_PAGES_PROJECT` | variable | the project to publish to (defaults to the repository name) |
+| `CLOUDFLARE_PAGES_PROJECT` | variable | the project to publish to (defaults to the repository name, lowercased) |
 | `REACT_APP_BACKEND_URL` | variable | the API the production site talks to |
 | `PREVIEW_BACKEND_URL` | variable | the API the pull request previews talk to |
 
@@ -505,9 +505,12 @@ In this order. Steps 1–2 happen once; 3–4 are the pair that decides whether 
 published site can talk to an API at all; 5 is the one people skip after
 changing either of them.
 
-1. **Cloudflare, once.** Create a Pages project (the repository name, or set
-   `CLOUDFLARE_PAGES_PROJECT` to whatever you called it) and set its production
-   branch to `main`.
+1. **Cloudflare, once.** Create a Pages project and set its production branch to
+   `main`. Its name is lowercase — it is also the `*.pages.dev` subdomain, so
+   Cloudflare rejects capitals. The workflow looks for
+   `CLOUDFLARE_PAGES_PROJECT` if that variable is set and otherwise for the
+   repository's own name lowercased, so a repository called `IFTR` and a project
+   called `iftr` line up on their own.
 2. **Credentials.** Settings → Secrets and variables → Actions, **Secrets**:
    `CLOUDFLARE_API_TOKEN` (a token with *Cloudflare Pages: Edit*) and
    `CLOUDFLARE_ACCOUNT_ID`. Environment-scoped instead? Put both on `production`
