@@ -59,7 +59,13 @@ jobs:
           # found" on a repository that had done nothing wrong. Lowercasing here
           # is a no-op for any name that can exist, and both the preflight and
           # the publish read the result, so they cannot drift apart.
-          echo "project=$(printf '%s' "$PROJECT" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+          project=$(printf '%s' "$PROJECT" | tr '[:upper:]' '[:lower:]')
+          echo "project=$project" >> "$GITHUB_OUTPUT"
+
+          # Said out loud so a run states which project it is about, whether or
+          # not it has the credentials to reach it: the preflight and the upload
+          # print this name only when they get that far.
+          echo "Pages project: $project"
 
           if [ "$EVENT" = "push" ] && [ "$HEAD_BRANCH" = "main" ]; then
             echo "branch=main" >> "$GITHUB_OUTPUT"
